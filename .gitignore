@@ -1,0 +1,25 @@
+# deps
+/node_modules
+/.pnp
+.pnp.js
+
+# next
+/.next/
+/out/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# misc
+.DS_Store
+*.pem
+/coverage
+/.nyc_output
+
+# drizzle
+/drizzle/meta
+
+# uploads (local dev)
+/uploads

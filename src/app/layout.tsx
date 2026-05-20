@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 
-const inter = Inter({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: "Emper — AI-Powered Career Matching",
+  title: "emper.ai — talent platform",
   description:
-    "Emper matches candidates and companies based on who they really are, not just keywords.",
+    "AI-native talent platform. A personal AI agent (Kira) representing each engineer.",
 };
 
 export default function RootLayout({
@@ -18,9 +15,21 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin=""
+        />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;1,6..72,400&family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="font-sans bg-[var(--bg)] text-[var(--text)]">
         {children}
-        <Toaster richColors position="top-right" />
+        <Toaster richColors position="top-right" theme="dark" />
       </body>
     </html>
   );

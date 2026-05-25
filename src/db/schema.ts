@@ -20,6 +20,10 @@ export const docTypeEnum = pgEnum("doc_type", [
   "culture",
   "jd",
   "employee_cv",
+  "github",
+  "website",
+  "portfolio",
+  "paper",
   "other",
 ]);
 

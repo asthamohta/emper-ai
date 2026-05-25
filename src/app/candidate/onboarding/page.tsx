@@ -16,11 +16,72 @@ export default function CandidateOnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [docsUploaded, setDocsUploaded] = useState(false);
+  const [githubHandle, setGithubHandle] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [paperUrl, setPaperUrl] = useState("");
+  const [githubStatus, setGithubStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
+  const [websiteStatus, setWebsiteStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
+  const [portfolioStatus, setPortfolioStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
+  const [paperStatus, setPaperStatus] = useState<"idle" | "processing" | "done" | "error">("idle");
 
   function handleDocsComplete(context: Record<string, string>) {
     setDocsUploaded(true);
     if (Object.keys(context).length > 0) {
       toast.success("Documents processed — we understand your background now.");
+    }
+  }
+
+  async function handleGithubIngest() {
+    if (!githubHandle.trim()) return;
+    setGithubStatus("processing");
+    try {
+      const res = await fetch("/api/ingest/github", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ githubUsername: githubHandle }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "GitHub ingestion failed");
+      }
+      setDocsUploaded(true);
+      setGithubStatus("done");
+      toast.success(`GitHub profile ${data.githubUsername} ingested successfully`);
+      setGithubHandle("");
+    } catch (error) {
+      console.error(error);
+      setGithubStatus("error");
+      toast.error("Unable to ingest GitHub profile. Check the username and try again.");
+    }
+  }
+
+  async function handleSourceIngest(
+    sourceType: "website" | "portfolio" | "paper",
+    url: string,
+    setStatus: (value: "idle" | "processing" | "done" | "error") => void,
+    resetUrl: () => void
+  ) {
+    if (!url.trim()) return;
+    setStatus("processing");
+    try {
+      const res = await fetch("/api/ingest/source", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceType, url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || `${sourceType} ingestion failed`);
+      }
+      setDocsUploaded(true);
+      setStatus("done");
+      toast.success(`${sourceType.charAt(0).toUpperCase() + sourceType.slice(1)} ingested successfully`);
+      resetUrl();
+    } catch (error) {
+      console.error(error);
+      setStatus("error");
+      toast.error(`Unable to ingest ${sourceType}. Check the URL and try again.`);
     }
   }
 
@@ -100,6 +161,130 @@ export default function CandidateOnboardingPage() {
               endpoint="/api/ingest/candidate"
               onUploadComplete={handleDocsComplete}
             />
+
+            <div className="mt-6 rounded-2xl border border-gray-200 p-4 bg-gray-50 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-900 mb-2">
+                  GitHub profile (optional)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={githubHandle}
+                    onChange={(e) => setGithubHandle(e.target.value)}
+                    placeholder="github.com/yourname or yourname"
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                  />
+                  <button
+                    onClick={handleGithubIngest}
+                    disabled={githubStatus === "processing"}
+                    className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {githubStatus === "processing" ? "Processing…" : "Ingest GitHub"}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Capture a small set of representative GitHub artifacts as markdown evidence.
+                </p>
+                {githubStatus === "done" && (
+                  <p className="mt-2 text-xs text-emerald-600">GitHub evidence ingested successfully.</p>
+                )}
+                {githubStatus === "error" && (
+                  <p className="mt-2 text-xs text-red-600">Could not ingest GitHub profile.</p>
+                )}
+              </div>
+
+              <div className="grid gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Personal website (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://yourname.com"
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                    />
+                    <button
+                      onClick={() => handleSourceIngest("website", websiteUrl, setWebsiteStatus, () => setWebsiteUrl(""))}
+                      disabled={websiteStatus === "processing"}
+                      className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {websiteStatus === "processing" ? "Processing…" : "Ingest website"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Scrape page metadata and text from your website.
+                  </p>
+                  {websiteStatus === "done" && (
+                    <p className="mt-2 text-xs text-emerald-600">Website evidence ingested successfully.</p>
+                  )}
+                  {websiteStatus === "error" && (
+                    <p className="mt-2 text-xs text-red-600">Could not ingest website.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Portfolio / project page (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      value={portfolioUrl}
+                      onChange={(e) => setPortfolioUrl(e.target.value)}
+                      placeholder="https://www.behance.net/yourname"
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                    />
+                    <button
+                      onClick={() => handleSourceIngest("portfolio", portfolioUrl, setPortfolioStatus, () => setPortfolioUrl(""))}
+                      disabled={portfolioStatus === "processing"}
+                      className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {portfolioStatus === "processing" ? "Processing…" : "Ingest portfolio"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Scrape a project walkthrough or portfolio page as evidence.
+                  </p>
+                  {portfolioStatus === "done" && (
+                    <p className="mt-2 text-xs text-emerald-600">Portfolio evidence ingested successfully.</p>
+                  )}
+                  {portfolioStatus === "error" && (
+                    <p className="mt-2 text-xs text-red-600">Could not ingest portfolio page.</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-900 mb-2">
+                    Research paper / publication page (optional)
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      value={paperUrl}
+                      onChange={(e) => setPaperUrl(e.target.value)}
+                      placeholder="https://arxiv.org/abs/1234.5678"
+                      className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                    />
+                    <button
+                      onClick={() => handleSourceIngest("paper", paperUrl, setPaperStatus, () => setPaperUrl(""))}
+                      disabled={paperStatus === "processing"}
+                      className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {paperStatus === "processing" ? "Processing…" : "Ingest paper"}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">
+                    Scrape academic or publication pages to capture title, authors, and abstract.
+                  </p>
+                  {paperStatus === "done" && (
+                    <p className="mt-2 text-xs text-emerald-600">Paper evidence ingested successfully.</p>
+                  )}
+                  {paperStatus === "error" && (
+                    <p className="mt-2 text-xs text-red-600">Could not ingest paper page.</p>
+                  )}
+                </div>
+              </div>
+            </div>
 
             {docsUploaded && (
               <button

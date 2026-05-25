@@ -38,11 +38,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing request body" }, { status: 400 });
   }
 
-  const sourceType = (body as { sourceType?: unknown }).sourceType;
+  const sourceTypeRaw = (body as { sourceType?: unknown }).sourceType;
   const url = (body as { url?: unknown }).url;
-  if (!sourceType || typeof sourceType !== "string" || !validSources.includes(sourceType as SourceType)) {
+  if (
+    !sourceTypeRaw ||
+    typeof sourceTypeRaw !== "string" ||
+    !validSources.includes(sourceTypeRaw as SourceType)
+  ) {
     return NextResponse.json({ error: "Invalid sourceType" }, { status: 400 });
   }
+
+  const sourceType = sourceTypeRaw as SourceType;
 
   if (!url || typeof url !== "string") {
     return NextResponse.json({ error: "url must be a string" }, { status: 400 });
@@ -65,7 +71,7 @@ export async function POST(request: Request) {
     candidateId: candidate.id,
     filename: scraped.filename,
     content: scraped.markdown,
-    docType: sourceType,
+    docType: scraped.docType,
   }).returning();
 
   const chunks = chunkText(scraped.markdown, 400, 50).slice(0, 20);

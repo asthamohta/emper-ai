@@ -29,16 +29,26 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
               <span>{data.user.location}</span>
             </div>
           </div>
-          <button
-            onClick={() => setIsPublic((p) => !p)}
-            className="btn shrink-0"
-            style={isPublic ? {} : { color: "var(--text-dim)" }}
-          >
-            <Icon name={isPublic ? "eye" : "lock"} size={12} />
-            <span className="font-mono text-[11px] uppercase tracking-wider">
-              {isPublic ? "public" : "private"}
-            </span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="/api/candidate/export"
+              download
+              className="btn"
+            >
+              <Icon name="doc" size={12} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">download .md</span>
+            </a>
+            <button
+              onClick={() => setIsPublic((p) => !p)}
+              className="btn"
+              style={isPublic ? {} : { color: "var(--text-dim)" }}
+            >
+              <Icon name={isPublic ? "eye" : "lock"} size={12} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">
+                {isPublic ? "public" : "private"}
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 

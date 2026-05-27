@@ -105,6 +105,7 @@ export async function fetchGithubEvidence(username: string) {
             encoding: "utf8",
             maxBuffer: 10 * 1024 * 1024,
             stdio: ["ignore", "pipe", "ignore"],
+            timeout: 15000,
           }
         );
         const parsed = JSON.parse(out);
@@ -131,9 +132,9 @@ export async function fetchGithubEvidence(username: string) {
 
       try {
         const commits = await fetchGithubJson<GithubCommit[]>(
-          `${GITHUB_API_BASE}/repos/${encodeURIComponent(repo.full_name)}/commits?author=${encodeURIComponent(username)}&per_page=2`
+          `${GITHUB_API_BASE}/repos/${encodeURIComponent(repo.full_name)}/commits?author=${encodeURIComponent(username)}&per_page=5`
         );
-        return { repo, commits: commits.slice(0, 2) };
+        return { repo, commits: commits.slice(0, 5) };
       } catch {
         return { repo, commits: [] as GithubCommit[] };
       }

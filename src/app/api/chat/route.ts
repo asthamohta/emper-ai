@@ -13,8 +13,8 @@ const schema = z.object({
       content: z.string(),
     })
   ),
-  // optional map to persist goals
-  saveGoals: z.record(z.string()).optional(),
+  // optional map to persist goals (values may be strings, arrays, or objects)
+  saveGoals: z.record(z.unknown()).optional(),
   // optional extracted profile string sent from the client to inform the assistant
   extractedProfile: z.string().optional(),
   // optional list of profile fields that are missing and should be asked about

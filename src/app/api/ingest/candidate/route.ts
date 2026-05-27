@@ -120,7 +120,7 @@ export async function POST(request: Request) {
         candidateId: candidate.id,
         filename,
         content: projectsMd.slice(0, 50000),
-        docType: "projects",
+        docType: "other",
       }).returning();
 
       const projChunks = chunkText(projectsMd, 400, 50);

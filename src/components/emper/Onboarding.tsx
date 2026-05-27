@@ -17,7 +17,7 @@ export function Onboarding({
   const [step, setStep] = React.useState(0);
   const [extractedAttrs, setExtractedAttrs] =
     React.useState<Record<string, string> | null>(null);
-  const [stagedFiles, setStagedFiles] = React.useState<File[]>([]);
+  const [stagedItems, setStagedItems] = React.useState<StagedFile[]>([]);
 
   return (
     <div
@@ -41,7 +41,7 @@ export function Onboarding({
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2].map((i) => (
               <div
                 key={i}
                 className="h-[2px] rounded-full transition-all"
@@ -52,7 +52,7 @@ export function Onboarding({
               />
             ))}
           </div>
-          <span className="font-mono text-[10.5px] text-faint">{step + 1}/4</span>
+          <span className="font-mono text-[10.5px] text-faint">{step + 1}/3</span>
           <button onClick={onExit} className="btn btn-ghost text-faint">
             <Icon name="x" size={12} />
             exit
@@ -63,15 +63,15 @@ export function Onboarding({
       <div className="flex-1 overflow-auto">
         {step === 0 && (
           <DumpStep
-            onNext={(files) => {
-              setStagedFiles(files);
+            onNext={(items) => {
+              setStagedItems(items);
               setStep(1);
             }}
           />
         )}
         {step === 1 && (
           <ProcessingStep
-            files={stagedFiles}
+            stagedItems={stagedItems}
             liveBackend={liveBackend}
             onNext={(attrs) => {
               setExtractedAttrs(attrs);
@@ -84,23 +84,29 @@ export function Onboarding({
             userFirstName={userFirstName}
             liveBackend={liveBackend}
             extractedAttrs={extractedAttrs}
-            onNext={() => setStep(3)}
+            onNext={onExit}
           />
-        )}
-        {step === 3 && (
-          <PreviewStep extractedAttrs={extractedAttrs} onDone={onExit} />
         )}
       </div>
     </div>
   );
 }
 
-type StagedFile = { file?: File; name: string; size: string; id: string };
+type StagedFile = {
+  file?: File;
+  name: string;
+  size: string;
+  id: string;
+  sourceType?: "github" | "website" | "paper";
+  url?: string;
+};
 
-function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
+function DumpStep({ onNext }: { onNext: (items: StagedFile[]) => void }) {
   const [staged, setStaged] = React.useState<StagedFile[]>([]);
   const [hover, setHover] = React.useState(false);
   const [github, setGithub] = React.useState("");
+  const [website, setWebsite] = React.useState("");
+  const [paper, setPaper] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   function formatSize(bytes: number) {
@@ -132,9 +138,9 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
         className="font-serif-h text-[16px] text-dim leading-relaxed max-w-[520px]"
         style={{ fontWeight: 300 }}
       >
-        Resumes, LinkedIn export, SOPs, project docs, blog posts. Nothing is shown
-        to anyone — Kira reads them, extracts attributes, then discards the raw
-        files if you want.
+        Resumes, LinkedIn export, project docs, blog posts — plus GitHub, website,
+        and research papers by URL. Nothing is shown to anyone — Kira reads them,
+        extracts attributes, then discards the raw files if you want.
       </p>
 
       <div
@@ -192,32 +198,87 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
-        <Icon name="github" size={14} className="text-dim" />
-        <input
-          value={github}
-          onChange={(e) => setGithub(e.target.value)}
-          placeholder="github.com/yourname"
-          className="flex-1 text-[13px] font-mono placeholder:text-faint"
-        />
-        <button
-          onClick={() => {
-            if (github) {
-              setStaged((s) => [
-                ...s,
-                {
-                  name: github,
-                  size: "—",
-                  id: `gh-${github}-${Math.random()}`,
-                },
-              ]);
-              setGithub("");
-            }
-          }}
-          className="btn btn-ghost text-faint"
-        >
-          add
-        </button>
+      <div className="mt-6 space-y-2">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+          <Icon name="github" size={14} className="text-dim" />
+          <input
+            value={github}
+            onChange={(e) => setGithub(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && github) {
+                setStaged((s) => [...s, { name: github, size: "url", id: `gh-${github}-${Math.random()}`, sourceType: "github", url: github }]);
+                setGithub("");
+              }
+            }}
+            placeholder="github.com/yourname"
+            className="flex-1 text-[13px] font-mono placeholder:text-faint"
+          />
+          <button
+            onClick={() => {
+              if (github) {
+                setStaged((s) => [...s, { name: github, size: "url", id: `gh-${github}-${Math.random()}`, sourceType: "github", url: github }]);
+                setGithub("");
+              }
+            }}
+            className="btn btn-ghost text-faint"
+          >
+            add
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+          <Icon name="link" size={14} className="text-dim" />
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && website) {
+                setStaged((s) => [...s, { name: website, size: "url", id: `ws-${website}-${Math.random()}`, sourceType: "website", url: website }]);
+                setWebsite("");
+              }
+            }}
+            placeholder="yourwebsite.com or portfolio URL"
+            className="flex-1 text-[13px] font-mono placeholder:text-faint"
+          />
+          <button
+            onClick={() => {
+              if (website) {
+                setStaged((s) => [...s, { name: website, size: "url", id: `ws-${website}-${Math.random()}`, sourceType: "website", url: website }]);
+                setWebsite("");
+              }
+            }}
+            className="btn btn-ghost text-faint"
+          >
+            add
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+          <Icon name="doc" size={14} className="text-dim" />
+          <input
+            value={paper}
+            onChange={(e) => setPaper(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && paper) {
+                setStaged((s) => [...s, { name: paper, size: "url", id: `pa-${paper}-${Math.random()}`, sourceType: "paper", url: paper }]);
+                setPaper("");
+              }
+            }}
+            placeholder="arxiv.org/abs/... or paper URL"
+            className="flex-1 text-[13px] font-mono placeholder:text-faint"
+          />
+          <button
+            onClick={() => {
+              if (paper) {
+                setStaged((s) => [...s, { name: paper, size: "url", id: `pa-${paper}-${Math.random()}`, sourceType: "paper", url: paper }]);
+                setPaper("");
+              }
+            }}
+            className="btn btn-ghost text-faint"
+          >
+            add
+          </button>
+        </div>
       </div>
 
       {staged.length > 0 && (
@@ -231,11 +292,15 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
                 key={f.id}
                 className="flex items-center gap-3 px-3 py-2 rounded-md border border-hair-soft bg-elev/30"
               >
-                <Icon name="doc" size={13} className="text-dim" />
+                <Icon name={f.sourceType === "github" ? "github" : f.sourceType === "website" ? "link" : "doc"} size={13} className="text-dim" />
                 <span className="text-[12.5px] font-mono flex-1 truncate">
                   {f.name}
                 </span>
-                <span className="font-mono text-[10.5px] text-faint">{f.size}</span>
+                {f.sourceType ? (
+                  <span className="font-mono text-[10px] text-accent uppercase tracking-wider">{f.sourceType}</span>
+                ) : (
+                  <span className="font-mono text-[10.5px] text-faint">{f.size}</span>
+                )}
                 <button
                   onClick={() => setStaged((arr) => arr.filter((x) => x.id !== f.id))}
                   className="text-faint hover:text-[--text]"
@@ -256,9 +321,7 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
           I&apos;ll add more later →
         </button>
         <button
-          onClick={() =>
-            onNext(staged.map((s) => s.file).filter((f): f is File => !!f))
-          }
+          onClick={() => onNext(staged)}
           className="btn btn-accent"
         >
           Process {staged.length}{" "}
@@ -271,11 +334,11 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
 }
 
 function ProcessingStep({
-  files,
+  stagedItems,
   liveBackend,
   onNext,
 }: {
-  files: File[];
+  stagedItems: StagedFile[];
   liveBackend: boolean;
   onNext: (attrs: Record<string, string> | null) => void;
 }) {
@@ -306,22 +369,42 @@ function ProcessingStep({
     let cancelled = false;
 
     async function run() {
-      // Real upload — only if backend live AND we have real files.
       let realResult: Record<string, string> | null = null;
-      if (liveBackend && files.length > 0) {
-        const form = new FormData();
-        files.forEach((f) => form.append("files", f));
-        try {
-          const res = await fetch("/api/ingest/candidate", {
-            method: "POST",
-            body: form,
-          });
-          if (res.ok) {
-            const json = await res.json();
-            realResult = (json.extractedContext as Record<string, string>) ?? null;
+      if (liveBackend && stagedItems.length > 0) {
+        const fileItems = stagedItems.filter((s) => s.file);
+        const urlItems = stagedItems.filter((s) => s.sourceType && s.url);
+
+        // Upload files to candidate ingest
+        if (fileItems.length > 0) {
+          try {
+            const form = new FormData();
+            fileItems.forEach((s) => form.append("files", s.file!));
+            const res = await fetch("/api/ingest/candidate", { method: "POST", body: form });
+            if (res.ok) {
+              const json = await res.json();
+              realResult = (json.extractedContext as Record<string, string>) ?? null;
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore; fall through to mock attrs
+        }
+
+        // Ingest URL-based sources in parallel
+        if (urlItems.length > 0) {
+          await Promise.allSettled(
+            urlItems.map((s) => {
+              const endpoint = s.sourceType === "github" ? "/api/ingest/github" : "/api/ingest/source";
+              return fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(
+                  s.sourceType === "github"
+                    ? { username: s.url }
+                    : { url: s.url, sourceType: s.sourceType }
+                ),
+              });
+            })
+          );
         }
       }
       // Floor the visible processing at 5.4s so the user sees the event log
@@ -340,7 +423,7 @@ function ProcessingStep({
       cancelled = true;
       clearInterval(id);
     };
-  }, [files, liveBackend]);
+  }, [stagedItems, liveBackend]);
 
   const counters = [
     { label: "roles found", target: 4, t: 2200 },
@@ -628,6 +711,7 @@ function FirstChatStep({
         const saveGoals: Record<string, string> = {
           conversation_summary: goalsSummary,
           completed_at: new Date().toISOString(),
+          profile_public: "true",
           ...extractedAttrs,
         };
         await fetch("/api/chat", {

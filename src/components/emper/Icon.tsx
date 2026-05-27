@@ -27,7 +27,8 @@ export type IconName =
   | "play"
   | "back"
   | "track"
-  | "mail";
+  | "mail"
+  | "logout";
 
 interface IconProps {
   name: IconName;
@@ -222,6 +223,14 @@ export function Icon({ name, size = 14, className = "" }: IconProps) {
         <svg {...common}>
           <rect x="3" y="5" width="18" height="14" rx="2" />
           <path d="M3 7l9 6 9-6" />
+        </svg>
+      );
+    case "logout":
+      return (
+        <svg {...common}>
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+          <polyline points="16 17 21 12 16 7" />
+          <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
       );
     default:

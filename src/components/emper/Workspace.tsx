@@ -10,6 +10,7 @@ import { ChatsPage } from "./pages/ChatsPage";
 import { KiraChatModal } from "./KiraChatModal";
 import { Onboarding } from "./Onboarding";
 import { MOCK, type EmperData, type EmperDocument, type EmperIntro } from "./data";
+import { buildEmperData } from "./buildData";
 
 export interface WorkspaceInitialData {
   liveBackend: boolean;
@@ -27,21 +28,41 @@ export function Workspace({ initial }: WorkspaceProps) {
   const [kiraGap, setKiraGap] = React.useState(false);
   const [data, setData] = React.useState<EmperData>(initial.data);
 
-  // For logged-in candidates: fetch documents + matches once and merge over the
-  // mock placeholders so the rest of the UI keeps rendering even if a section
-  // has no real data yet.
+  // For logged-in candidates: fetch live profile + documents + matches on mount
+  // so the UI always reflects the latest DB state, not just the SSR snapshot.
   React.useEffect(() => {
     if (!initial.liveBackend) return;
     let cancelled = false;
 
     (async () => {
       try {
-        const [docsRes, matchesRes] = await Promise.allSettled([
+        const [profileRes, docsRes, matchesRes] = await Promise.allSettled([
+          fetch("/api/candidate/profile", { cache: "no-store" }),
           fetch("/api/candidate/documents", { cache: "no-store" }),
           fetch("/api/matches", { cache: "no-store" }),
         ]);
 
         const patch: Partial<EmperData> = {};
+
+        if (profileRes.status === "fulfilled" && profileRes.value.ok) {
+          const json = await profileRes.value.json();
+          if (json.candidate) {
+            const freshData = buildEmperData({
+              email: json.user.email,
+              name: json.candidate.name,
+              goals: json.candidate.goals ?? {},
+              docCount: json.docCount ?? 0,
+            });
+            // Merge profile sections from fresh DB data
+            patch.user = freshData.user;
+            patch.arc = freshData.arc;
+            patch.howIWork = freshData.howIWork;
+            patch.shipped = freshData.shipped;
+            patch.shippedSources = freshData.shippedSources;
+            patch.optimizingFor = freshData.optimizingFor;
+            patch.gapQuestions = freshData.gapQuestions;
+          }
+        }
 
         if (docsRes.status === "fulfilled" && docsRes.value.ok) {
           const json = await docsRes.value.json();
@@ -61,7 +82,7 @@ export function Workspace({ initial }: WorkspaceProps) {
           setData((d) => ({ ...d, ...patch }));
         }
       } catch {
-        // best-effort: leave mock fallback in place
+        // best-effort: leave SSR snapshot in place
       }
     })();
 

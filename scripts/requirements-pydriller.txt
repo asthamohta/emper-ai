@@ -1,0 +1,2 @@
+pydriller>=0.54
+GitPython>=3.1

@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { execFileSync } from "child_process";
 
 const GITHUB_API_BASE = "https://api.github.com";
 
@@ -95,6 +96,39 @@ export async function fetchGithubEvidence(username: string) {
 
   const commitSummaries = await Promise.all(
     selectedRepos.map(async (repo) => {
+      // Prefer using PyDriller helper if available for better representative commit selection
+      try {
+        const out = execFileSync(
+          "./.venv/bin/python3",
+          ["./scripts/pydriller_analyze.py", repo.full_name, username],
+          {
+            encoding: "utf8",
+            maxBuffer: 10 * 1024 * 1024,
+            stdio: ["ignore", "pipe", "ignore"],
+          }
+        );
+        const parsed = JSON.parse(out);
+        if (Array.isArray(parsed)) {
+          // Map to GithubCommit-like shape for downstream markdown builder
+          const commits = parsed.map((c: any) => ({
+            sha: c.sha,
+            html_url: `https://github.com/${repo.full_name}/commit/${c.sha}`,
+            commit: {
+              message: c.msg,
+              author: { name: c.author, date: c.date },
+            },
+            diff_snippet: c.diff_snippet,
+            added: c.added,
+            removed: c.removed,
+            files_changed: c.files_changed,
+            is_merge: c.is_merge,
+          } as unknown as GithubCommit));
+          return { repo, commits };
+        }
+      } catch (err) {
+        // fall back to GitHub API
+      }
+
       try {
         const commits = await fetchGithubJson<GithubCommit[]>(
           `${GITHUB_API_BASE}/repos/${encodeURIComponent(repo.full_name)}/commits?author=${encodeURIComponent(username)}&per_page=2`

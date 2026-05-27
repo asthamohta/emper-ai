@@ -45,8 +45,37 @@ export function KiraChatModal({
   const [input, setInput] = React.useState("");
   const [mode, setMode] = React.useState<"text" | "voice">("text");
   const [sending, setSending] = React.useState(false);
+  const [extractedProfile, setExtractedProfile] = React.useState<string>("");
+  const [missingFields, setMissingFields] = React.useState<string[]>([]);
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const fallbackIdxRef = React.useRef(0);
+
+  // Load the candidate's stored profile so Kira knows what's already on file
+  React.useEffect(() => {
+    if (!liveBackend || !open) return;
+    fetch("/api/candidate/profile", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.candidate?.goals) {
+          setExtractedProfile(JSON.stringify(json.candidate.goals));
+          const required = [
+            "career_trajectory",
+            "summary",
+            "skills",
+            "experience_level",
+            "industries",
+            "working_style",
+            "values",
+          ];
+          const missing = required.filter((k) => {
+            const v = json.candidate.goals[k];
+            return !v || String(v).trim().length === 0;
+          });
+          setMissingFields(missing);
+        }
+      })
+      .catch(() => {});
+  }, [liveBackend, open]);
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -83,7 +112,11 @@ export function KiraChatModal({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          extractedProfile: extractedProfile || undefined,
+          missingFields: missingFields.length > 0 ? missingFields : undefined,
+        }),
       });
       if (!res.ok || !res.body) throw new Error("chat failed");
 

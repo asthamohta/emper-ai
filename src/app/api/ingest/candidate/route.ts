@@ -7,6 +7,8 @@ import { parseFile, inferDocType } from "@/lib/file-parser";
 import { embedBatch, serializeEmbedding } from "@/lib/embeddings";
 import { chunkText } from "@/lib/utils";
 import { extractCandidateContext } from "@/lib/claude";
+import fs from "fs";
+import path from "path";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
   }
 
   // Extract holistic context using Claude
-  let extractedGoals: Record<string, string> = {};
+  let extractedGoals: Record<string, any> = {};
   if (processedDocs.length > 0) {
     try {
       extractedGoals = await extractCandidateContext(processedDocs);
@@ -86,6 +88,56 @@ export async function POST(request: Request) {
     .update(candidates)
     .set({ goals: { ...extractedGoals, _docsProcessed: String(processedDocs.length) } })
     .where(eq(candidates.id, candidate.id));
+
+  // If projects were extracted, persist them as a markdown document and index it
+  try {
+    const projects = Array.isArray(extractedGoals.projects) ? extractedGoals.projects : [];
+    if (projects.length > 0) {
+      const projectsMd = [
+        `# Extracted Projects (${projects.length})`,
+        "",
+        ...projects.map((p: any, idx: number) => {
+          const title = p.title || `Project ${idx + 1}`;
+          const desc = p.description || "";
+          const role = p.role ? `**Role:** ${p.role}` : "";
+          const timeframe = p.timeframe ? `**Timeframe:** ${p.timeframe}` : "";
+          const link = p.link ? `**Link:** ${p.link}` : "";
+          const highlights = p.highlights
+            ? p.highlights.split(",").map((h: string) => `- ${h.trim()}`).join("\n")
+            : "";
+          return [`## ${title}`, "", desc, "", role, timeframe, link, "", highlights, ""].join("\n");
+        }),
+      ].join("\n");
+
+      const dataDir = path.join(process.cwd(), "data", "resume-projects");
+      await fs.promises.mkdir(dataDir, { recursive: true });
+      const filename = `resume-projects-${candidate.id}-${Date.now()}.md`;
+      const filepath = path.join(dataDir, filename);
+      await fs.promises.writeFile(filepath, projectsMd, "utf8");
+
+      // Insert as a candidate document and index chunks/embeddings
+      const [projDoc] = await db.insert(candidateDocuments).values({
+        candidateId: candidate.id,
+        filename,
+        content: projectsMd.slice(0, 50000),
+        docType: "projects",
+      }).returning();
+
+      const projChunks = chunkText(projectsMd, 400, 50);
+      if (projChunks.length > 0) {
+        const projEmbeddings = await embedBatch(projChunks.slice(0, 20));
+        const projRows = projChunks.slice(0, 20).map((chunk, i) => ({
+          candidateId: candidate.id,
+          documentId: projDoc.id,
+          content: chunk,
+          embedding: serializeEmbedding(projEmbeddings[i]),
+        }));
+        await db.insert(candidateChunks).values(projRows);
+      }
+    }
+  } catch (err) {
+    console.error("Failed to persist extracted projects:", err);
+  }
 
   return NextResponse.json({
     ok: true,

@@ -12,6 +12,7 @@
     --border: #1c1c1c;
     --border-soft: #141414;
     --text: #e6e4df;
+    --text-dark: #111827;
     --text-dim: #8a8a85;
     --text-faint: #5a5a55;
     --accent: #d4a574;
@@ -74,6 +75,31 @@
   textarea {
     background: transparent;
     outline: none;
+  }
+
+  /* Ensure readable text on light backgrounds (e.g. .bg-white containers) */
+  .bg-white {
+    background: #ffffff;
+    color: var(--text-dark);
+  }
+  .bg-white label,
+  .bg-white p,
+  .bg-white span,
+  .bg-white div,
+  .bg-white button,
+  .bg-white a {
+    color: var(--text-dark);
+  }
+  .bg-white input,
+  .bg-white textarea,
+  .bg-white select {
+    color: var(--text-dark);
+    background: transparent;
+    caret-color: var(--text-dark);
+  }
+  .bg-white input::placeholder,
+  .bg-white textarea::placeholder {
+    color: #9ca3af; /* readable placeholder */
   }
 
   button:focus-visible {
@@ -170,7 +196,7 @@
     font-weight: 500;
     border: 1px solid var(--border);
     background: #131313;
-    color: var(--text);
+    color: currentColor;
     transition: background 120ms, border-color 120ms;
     white-space: nowrap;
   }
@@ -207,7 +233,7 @@
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-dim);
+    color: currentColor;
     background: #131313;
     border: 1px solid var(--border);
     white-space: nowrap;

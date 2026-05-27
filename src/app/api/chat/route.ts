@@ -13,7 +13,12 @@ const schema = z.object({
       content: z.string(),
     })
   ),
+  // optional map to persist goals
   saveGoals: z.record(z.string()).optional(),
+  // optional extracted profile string sent from the client to inform the assistant
+  extractedProfile: z.string().optional(),
+  // optional list of profile fields that are missing and should be asked about
+  missingFields: z.array(z.string()).optional(),
 });
 
 export async function POST(request: Request) {
@@ -30,7 +35,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { messages, saveGoals } = schema.parse(body);
+  const { messages, saveGoals, extractedProfile: extractedProfileBody, missingFields } = schema.parse(body);
 
   // If saving final goals
   if (saveGoals) {
@@ -48,13 +53,14 @@ export async function POST(request: Request) {
   }
 
   // Stream chat response
-  const extractedProfile = JSON.stringify(candidate.goals ?? {});
+  // Prefer an extracted profile provided by the client (during onboarding)
+  const extractedProfile = getExtractedProfile(extractedProfileBody, candidate.goals);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
       try {
-        for await (const chunk of streamGoalsChat(messages, extractedProfile)) {
+        for await (const chunk of streamGoalsChat(messages, extractedProfile, missingFields)) {
           controller.enqueue(encoder.encode(chunk));
         }
       } catch (err) {
@@ -71,4 +77,16 @@ export async function POST(request: Request) {
       "Transfer-Encoding": "chunked",
     },
   });
+}
+
+function getExtractedProfile(
+  bodyVal: string | undefined,
+  candidateGoals: any
+): string {
+  if (bodyVal && bodyVal.trim().length > 0) return bodyVal;
+  try {
+    return JSON.stringify(candidateGoals ?? {});
+  } catch {
+    return "{}";
+  }
 }

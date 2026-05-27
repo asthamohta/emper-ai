@@ -4,7 +4,6 @@ import { db } from "@/db";
 import { candidates, candidateDocuments } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { Workspace } from "@/components/emper/Workspace";
-import { MOCK } from "@/components/emper/data";
 import { buildEmperData } from "@/components/emper/buildData";
 
 export const dynamic = "force-dynamic";
@@ -12,16 +11,14 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const session = await getSession();
 
-  // Company users go to their existing dashboard surface.
-  if (session?.role === "company") {
-    redirect("/company/dashboard");
+  // Not logged in: redirect to login
+  if (!session) {
+    redirect("/login");
   }
 
-  // Logged-out: serve the workspace as a demo with MOCK data.
-  if (!session) {
-    return (
-      <Workspace initial={{ liveBackend: false, data: MOCK }} />
-    );
+  // Company users go to their existing dashboard surface.
+  if (session.role === "company") {
+    redirect("/company/dashboard");
   }
 
   // Candidate: hydrate from DB.
@@ -29,19 +26,22 @@ export default async function HomePage() {
     where: eq(candidates.userId, session.userId),
   });
 
-  let docCount = 0;
-  if (candidate) {
-    const [{ count }] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(candidateDocuments)
-      .where(eq(candidateDocuments.candidateId, candidate.id));
-    docCount = Number(count) || 0;
+  // If candidate doesn't have a profile yet, send to onboarding
+  if (!candidate) {
+    redirect("/candidate/onboarding");
   }
+
+  let docCount = 0;
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(candidateDocuments)
+    .where(eq(candidateDocuments.candidateId, candidate.id));
+  docCount = Number(count) || 0;
 
   const data = buildEmperData({
     email: session.email,
-    name: candidate?.name,
-    goals: candidate?.goals ?? null,
+    name: candidate.name,
+    goals: candidate.goals ?? null,
     docCount,
   });
 

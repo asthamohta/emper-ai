@@ -10,7 +10,7 @@ export const MODEL = "claude-sonnet-4-6";
 
 export async function extractCandidateContext(
   documents: Array<{ content: string; docType: string }>
-): Promise<Record<string, string>> {
+): Promise<Record<string, any>> {
   const combined = documents
     .map((d) => `[${d.docType.toUpperCase()}]\n${d.content}`)
     .join("\n\n---\n\n");
@@ -36,7 +36,17 @@ things are written, not just what is written. Return a JSON object.`,
   "career_trajectory": "pattern of career moves and ambitions",
   "values": "inferred professional values",
   "strengths": "top 3-5 genuine strengths",
-  "summary": "2-3 sentence holistic summary of this candidate"
+  "summary": "2-3 sentence holistic summary of this candidate",
+  "projects": [
+    {
+      "title": "short project title",
+      "description": "one-paragraph description",
+      "role": "role on project",
+      "timeframe": "dates or duration",
+      "link": "optional url or repo",
+      "highlights": "comma-separated bullets or achievements"
+    }
+  ]
 }
 
 Documents:
@@ -119,31 +129,57 @@ Return JSON:
 
 export async function* streamGoalsChat(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
-  extractedProfile: string
+  extractedProfile: string,
+  missingFields?: string[]
 ) {
+  let knownSection = "";
+  let missingSection = "";
+
+  try {
+    const profile = JSON.parse(extractedProfile);
+    const knownEntries = Object.entries(profile).filter(
+      ([, v]) => v && String(v).trim().length > 0
+    );
+    if (knownEntries.length > 0) {
+      knownSection =
+        "ALREADY KNOWN (do NOT ask about any of these — treat them as facts):\n" +
+        knownEntries.map(([k, v]) => `  ${k}: ${v}`).join("\n");
+    }
+  } catch {
+    knownSection = `ALREADY KNOWN (raw):\n${extractedProfile}`;
+  }
+
+  if (missingFields && missingFields.length > 0) {
+    missingSection =
+      "MISSING — only ask about these (in order of importance):\n" +
+      missingFields.map((f) => `  - ${f}`).join("\n");
+  } else {
+    missingSection =
+      "Nothing critical is missing. Do NOT ask any questions — greet the candidate, briefly confirm what you know, and close the conversation.";
+  }
+
   const stream = getAnthropic().messages.stream({
     model: MODEL,
     max_tokens: 800,
-    system: `You are Emper's career guide — warm, insightful, and genuinely curious about people.
-You're having a conversation to understand what this candidate truly wants in their next role.
+    system: `You are Kira, Emper's career guide — warm, precise, and intentionally brief.
+The candidate has already uploaded their documents (resume, GitHub, etc.) and the key
+facts below were extracted from those documents. Treat them as verified — do not
+question whether documents were provided; they were.
 
-Your goal is to extract:
-- Career goals and where they want to be in 3-5 years
-- What they're passionate about (not just what they're good at)
-- Why they're looking — what's missing in their current/last role
-- Culture preferences (team size, pace, autonomy, feedback style)
-- Compensation expectations and location preferences
-- Their "must haves" vs "nice to haves"
+${knownSection}
 
-Guidelines:
-- Ask ONE focused question at a time
-- Build on what they share — this is a conversation, not a form
-- Be direct but warm; avoid corporate HR speak
-- If they're vague, gently probe deeper with a follow-up
-- After ~6-8 exchanges, you'll have enough — wrap up naturally
+${missingSection}
 
-Known about this candidate from their documents:
-${extractedProfile}`,
+Hard rules:
+- NEVER add disclaimers like "I don't have your documents" or "no documents were provided" —
+  the data above IS from their documents.
+- NEVER ask about a field listed under ALREADY KNOWN. If the user volunteers info that
+  matches a known field, acknowledge it and move on — do not ask follow-ups on it.
+- Ask ONE question at a time. Wait for the answer before asking the next.
+- Ask at most 3 questions total across the whole conversation.
+- Keep each question concrete and answerable in 1-2 sentences.
+- When all missing fields are covered (or after 3 questions), stop and give a brief
+  closing statement — do not loop back to known topics.`,
     messages,
   });
 

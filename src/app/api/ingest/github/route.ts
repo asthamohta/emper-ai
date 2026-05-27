@@ -11,6 +11,7 @@ import {
   normalizeGithubHandle,
   writeGithubMarkdownFile,
 } from "@/lib/github-scraper";
+import { synthesizeProjectsForCandidate } from "@/lib/github-analyzer";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -66,6 +67,13 @@ export async function POST(request: Request) {
 
   const markdown = buildGithubMarkdown(normalized, evidence);
   const filePath = await writeGithubMarkdownFile(candidate.id, normalized, markdown);
+
+  // Synthesize structured projects + insights and persist if any new insights found
+  try {
+    await synthesizeProjectsForCandidate(candidate.id, normalized);
+  } catch (err) {
+    console.error("Project synthesis failed:", err);
+  }
 
   const [doc] = await db.insert(candidateDocuments).values({
     candidateId: candidate.id,

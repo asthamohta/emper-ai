@@ -4,14 +4,62 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+
+function Logo() {
+  return (
+    <Link href="/" className="flex items-center gap-2 mb-10">
+      <div
+        className="w-5 h-5 rounded-[5px] flex items-center justify-center"
+        style={{ background: "linear-gradient(135deg,#d4a574,#8a6a47)" }}
+      >
+        <div className="w-1.5 h-1.5 rounded-[2px] bg-black/70" />
+      </div>
+      <span className="font-serif-h text-[17px] leading-none">emper</span>
+      <span className="font-mono text-[10px] text-faint mt-1">/ai</span>
+    </Link>
+  );
+}
+
+function InputField({
+  label,
+  type,
+  value,
+  onChange,
+  placeholder,
+  minLength,
+}: {
+  label: string;
+  type: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  minLength?: number;
+}) {
+  return (
+    <div>
+      <label className="block font-mono text-[10.5px] text-dim uppercase tracking-wider mb-1.5">
+        {label}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required
+        minLength={minLength}
+        className="w-full px-3 py-2.5 rounded-md border border-hair text-[13px] font-mono placeholder:text-faint focus:border-[rgba(212,165,116,0.5)] focus:ring-0 outline-none transition-colors"
+        style={{ background: "var(--bg-elev-2)" }}
+      />
+    </div>
+  );
+}
 
 function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const defaultRole = (searchParams.get("role") as "candidate" | "company") ?? "candidate";
+  const defaultRole = (searchParams.get("role") as "candidate" | "company") ?? null;
 
-  const [role, setRole] = useState<"candidate" | "company">(defaultRole);
+  const [role, setRole] = useState<"candidate" | "company" | null>(defaultRole);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -19,6 +67,7 @@ function SignupForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!role) return;
     setLoading(true);
     try {
       const res = await fetch("/api/auth/signup", {
@@ -40,89 +89,121 @@ function SignupForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
-      <Link href="/" className="text-2xl font-bold text-violet-600 mb-8">
-        emper
-      </Link>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4"
+      style={{ background: "var(--bg)" }}
+    >
+      <Logo />
 
-      <div className="w-full max-w-md bg-white rounded-2xl border shadow-sm p-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Create your account</h1>
-        <p className="text-sm text-gray-500 mb-6">
-          Already have an account?{" "}
-          <Link href="/login" className="text-violet-600 hover:underline">
-            Log in
-          </Link>
-        </p>
-
-        {/* Role toggle */}
-        <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
-          {(["candidate", "company"] as const).map((r) => (
+      {/* Path selection */}
+      {!role ? (
+        <div className="w-full max-w-md">
+          <h1 className="font-serif-h text-[32px] leading-tight tracking-tight mb-2 text-center">
+            Who are you?
+          </h1>
+          <p className="font-mono text-[11.5px] text-faint text-center mb-8">
+            Already have an account?{" "}
+            <Link href="/login" className="text-accent hover:underline">
+              Log in
+            </Link>
+          </p>
+          <div className="grid grid-cols-2 gap-3">
             <button
-              key={r}
-              type="button"
-              onClick={() => setRole(r)}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-all ${
-                role === r
-                  ? "bg-white text-gray-900 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-              }`}
+              onClick={() => setRole("candidate")}
+              className="card p-6 text-left hover:border-[rgba(212,165,116,0.4)] transition-colors group"
             >
-              {r === "candidate" ? "I'm a candidate" : "I'm hiring"}
+              <div
+                className="w-8 h-8 rounded-md flex items-center justify-center mb-4"
+                style={{ background: "rgba(212,165,116,0.1)", border: "1px solid rgba(212,165,116,0.2)" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
+                </svg>
+              </div>
+              <div className="font-serif-h text-[18px] mb-1">Candidate</div>
+              <div className="font-mono text-[11px] text-faint leading-relaxed">
+                I&apos;m looking for my next role. Build my profile and get matched.
+              </div>
             </button>
-          ))}
-        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              {role === "candidate" ? "Your name" : "Company name"}
-            </label>
-            <input
+            <button
+              onClick={() => setRole("company")}
+              className="card p-6 text-left hover:border-[rgba(212,165,116,0.4)] transition-colors group"
+            >
+              <div
+                className="w-8 h-8 rounded-md flex items-center justify-center mb-4"
+                style={{ background: "rgba(212,165,116,0.1)", border: "1px solid rgba(212,165,116,0.2)" }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
+                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                  <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" />
+                  <line x1="12" y1="12" x2="12" y2="16" />
+                  <line x1="10" y1="14" x2="14" y2="14" />
+                </svg>
+              </div>
+              <div className="font-serif-h text-[18px] mb-1">Company</div>
+              <div className="font-mono text-[11px] text-faint leading-relaxed">
+                I&apos;m hiring. Post a role and find matched candidates.
+              </div>
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="w-full max-w-sm card p-8">
+          <button
+            onClick={() => setRole(null)}
+            className="flex items-center gap-1.5 font-mono text-[10.5px] text-faint hover:text-dim mb-5 -ml-0.5"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            back
+          </button>
+
+          <h1 className="font-serif-h text-[26px] leading-tight mb-1">
+            {role === "candidate" ? "Create your profile" : "Set up your company"}
+          </h1>
+          <p className="font-mono text-[11.5px] text-faint mb-7">
+            Already have an account?{" "}
+            <Link href="/login" className="text-accent hover:underline">
+              Log in
+            </Link>
+          </p>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <InputField
+              label={role === "candidate" ? "Your name" : "Company name"}
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={setName}
               placeholder={role === "candidate" ? "Alex Chen" : "Acme Corp"}
-              required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Email
-            </label>
-            <input
+            <InputField
+              label="Email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+              onChange={setEmail}
+              placeholder={role === "candidate" ? "you@example.com" : "hiring@company.com"}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Password
-            </label>
-            <input
+            <InputField
+              label="Password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={setPassword}
               placeholder="8+ characters"
               minLength={8}
-              required
-              className="w-full px-3.5 py-2.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 bg-violet-600 text-white text-sm font-medium rounded-lg hover:bg-violet-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
-          >
-            {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            Create account
-          </button>
-        </form>
-      </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-accent w-full justify-center py-2.5 disabled:opacity-50"
+            >
+              {loading ? "Creating account…" : "Continue"}
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

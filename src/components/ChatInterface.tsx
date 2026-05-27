@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, CheckCircle2 } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -38,108 +37,92 @@ export default function ChatInterface({
 
   async function sendMessage() {
     if (!input.trim() || loading) return;
-
     const userMsg: Message = { role: "user", content: input.trim() };
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     setLoading(true);
-
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: newMessages }),
       });
-
       if (!res.ok || !res.body) throw new Error("Chat failed");
-
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistantText = "";
-
       setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
-
       while (true) {
         const { done: streamDone, value } = await reader.read();
         if (streamDone) break;
         assistantText += decoder.decode(value, { stream: true });
         setMessages((prev) => {
           const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: assistantText,
-          };
+          updated[updated.length - 1] = { role: "assistant", content: assistantText };
           return updated;
         });
       }
-
       const newTurn = turnCount + 1;
       setTurnCount(newTurn);
-
-      // After enough turns, save and complete
-      if (newTurn >= WRAP_UP_TURNS) {
-        await saveGoals(newMessages, assistantText);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
+      if (newTurn >= WRAP_UP_TURNS) await saveGoals(newMessages, assistantText);
+    } catch {}
+    finally {
       setLoading(false);
       inputRef.current?.focus();
     }
   }
 
-  async function saveGoals(conversationMessages: Message[], lastAssistant: string) {
+  async function saveGoals(conversationMessages: Message[], _lastAssistant: string) {
     const goalsSummary = conversationMessages
       .filter((m) => m.role === "user")
       .map((m) => m.content)
       .join(" | ");
-
     await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages: conversationMessages,
-        saveGoals: {
-          conversation_summary: goalsSummary,
-          completed_at: new Date().toISOString(),
-        },
+        saveGoals: { conversation_summary: goalsSummary, completed_at: new Date().toISOString() },
       }),
     });
-
     setDone(true);
     onComplete({ conversation_summary: goalsSummary });
   }
 
   async function handleDone() {
-    const goalsSummary = messages
-      .filter((m) => m.role === "user")
-      .map((m) => m.content)
-      .join(" | ");
+    const goalsSummary = messages.filter((m) => m.role === "user").map((m) => m.content).join(" | ");
     await saveGoals(messages, "");
   }
 
   return (
-    <div className="flex flex-col h-[500px] rounded-xl border border-gray-200 bg-white overflow-hidden">
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+    <div className="flex flex-col rounded-lg border border-hair overflow-hidden" style={{ height: 480 }}>
+      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ background: "var(--bg)" }}>
         {messages.map((msg, i) => (
-          <div
-            key={i}
-            className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-          >
+          <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
             <div
-              className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+              className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center font-mono text-[10px]"
+              style={
+                msg.role === "assistant"
+                  ? { background: "rgba(212,165,116,0.12)", border: "1px solid rgba(212,165,116,0.3)", color: "var(--accent)" }
+                  : { background: "#1f1f1f", color: "var(--text-dim)" }
+              }
+            >
+              {msg.role === "assistant" ? "K" : "Y"}
+            </div>
+            <div
+              className="max-w-[78%] px-4 py-2.5 rounded-lg text-[13.5px] font-serif-h leading-relaxed"
+              style={
                 msg.role === "user"
-                  ? "bg-violet-600 text-white rounded-br-sm"
-                  : "bg-gray-100 text-gray-800 rounded-bl-sm"
-              }`}
+                  ? { background: "rgba(212,165,116,0.1)", border: "1px solid rgba(212,165,116,0.2)", color: "var(--text)", fontWeight: 300 }
+                  : { background: "var(--bg-elev-2)", border: "1px solid var(--border)", color: "var(--text-dim)", fontWeight: 300 }
+              }
             >
               {msg.content || (
-                <span className="inline-flex gap-1">
-                  <span className="animate-bounce delay-0 w-1 h-1 bg-gray-400 rounded-full" />
-                  <span className="animate-bounce delay-75 w-1 h-1 bg-gray-400 rounded-full" />
-                  <span className="animate-bounce delay-150 w-1 h-1 bg-gray-400 rounded-full" />
+                <span className="flex gap-1 items-center">
+                  <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: "0ms" }} />
+                  <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: "150ms" }} />
+                  <span className="w-1 h-1 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
                 </span>
               )}
             </div>
@@ -148,9 +131,11 @@ export default function ChatInterface({
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       {!done ? (
-        <div className="border-t p-3 bg-gray-50 flex gap-2 items-center">
+        <div
+          className="border-t border-hair flex gap-2 items-center px-3 py-2.5"
+          style={{ background: "var(--bg-elev)" }}
+        >
           <input
             ref={inputRef}
             type="text"
@@ -159,32 +144,30 @@ export default function ChatInterface({
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder="Share your thoughts…"
             disabled={loading}
-            className="flex-1 px-3.5 py-2.5 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent disabled:opacity-50"
+            className="flex-1 px-3 py-2 rounded-md border border-hair text-[13px] font-mono placeholder:text-faint disabled:opacity-50 outline-none focus:border-[rgba(212,165,116,0.5)] transition-colors"
+            style={{ background: "var(--bg-elev-2)" }}
           />
           {turnCount >= 4 && (
-            <button
-              onClick={handleDone}
-              className="px-3 py-2.5 text-xs font-medium text-gray-500 hover:text-gray-700 border border-gray-200 rounded-lg bg-white transition-colors"
-            >
-              Done
+            <button onClick={handleDone} className="btn btn-ghost font-mono text-[11px]">
+              done
             </button>
           )}
           <button
             onClick={sendMessage}
             disabled={loading || !input.trim()}
-            className="p-2.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="btn btn-accent py-2 px-2.5 disabled:opacity-40"
           >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" />
+            </svg>
           </button>
         </div>
       ) : (
-        <div className="border-t p-4 bg-emerald-50 flex items-center gap-2 text-sm text-emerald-700 font-medium">
-          <CheckCircle2 className="w-4 h-4" />
-          Got it — your preferences are saved. Finding your matches now.
+        <div
+          className="border-t border-hair px-5 py-3 flex items-center gap-2 font-mono text-[11.5px]"
+          style={{ background: "rgba(124,255,178,0.06)", color: "var(--good)" }}
+        >
+          ✓ Your preferences are saved. Finding matches now.
         </div>
       )}
     </div>

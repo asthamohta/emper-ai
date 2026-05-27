@@ -29,74 +29,96 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
               <span>{data.user.location}</span>
             </div>
           </div>
-          <button
-            onClick={() => setIsPublic((p) => !p)}
-            className="btn shrink-0"
-            style={isPublic ? {} : { color: "var(--text-dim)" }}
-          >
-            <Icon name={isPublic ? "eye" : "lock"} size={12} />
-            <span className="font-mono text-[11px] uppercase tracking-wider">
-              {isPublic ? "public" : "private"}
-            </span>
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="/api/candidate/export"
+              download
+              className="btn"
+            >
+              <Icon name="doc" size={12} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">download .md</span>
+            </a>
+            <button
+              onClick={() => setIsPublic((p) => !p)}
+              className="btn"
+              style={isPublic ? {} : { color: "var(--text-dim)" }}
+            >
+              <Icon name={isPublic ? "eye" : "lock"} size={12} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">
+                {isPublic ? "public" : "private"}
+              </span>
+            </button>
+          </div>
         </div>
       </header>
 
       <KiraBanner count={data.gapQuestions} onTalk={onTalkToKira} />
 
-      <section className="mb-14">
-        <SectionHead label="The arc" mono="career trajectory" />
-        <div
-          className="prose-warm text-[15.5px] leading-relaxed font-serif-h text-[--text]"
-          style={{ fontWeight: 300 }}
-        >
-          <p>{data.arc.body}</p>
-        </div>
-        <Attribution sources={data.arc.sources} />
-      </section>
+      {data.arc.body ? (
+        <section className="mb-14">
+          <SectionHead label="The arc" mono="career trajectory" />
+          <div
+            className="prose-warm text-[15.5px] leading-relaxed font-serif-h text-[--text]"
+            style={{ fontWeight: 300 }}
+          >
+            <p>{data.arc.body}</p>
+          </div>
+          <Attribution sources={data.arc.sources} />
+        </section>
+      ) : null}
 
-      <section className="mb-14">
-        <SectionHead label="How I work" mono="technical identity" />
-        <div
-          className="prose-warm text-[15.5px] leading-relaxed font-serif-h"
-          style={{ fontWeight: 300 }}
-        >
-          <p>{data.howIWork.body}</p>
-        </div>
-        <Attribution sources={data.howIWork.sources} />
-      </section>
+      {data.howIWork.body ? (
+        <section className="mb-14">
+          <SectionHead label="How I work" mono="technical identity" />
+          <div
+            className="prose-warm text-[15.5px] leading-relaxed font-serif-h"
+            style={{ fontWeight: 300 }}
+          >
+            <p>{data.howIWork.body}</p>
+          </div>
+          <Attribution sources={data.howIWork.sources} />
+        </section>
+      ) : null}
 
-      <section className="mb-14">
-        <SectionHead label="Shipped" mono="projects · owned" />
-        <div className="space-y-5">
-          {data.shipped.map((p, i) => (
-            <div
-              key={i}
-              className="border-l border-hair pl-5 py-1 hover:border-[rgba(212,165,116,0.5)] transition-colors"
-            >
-              <div className="flex items-baseline gap-3 flex-wrap">
-                <h3 className="font-serif-h text-[18px]">{p.title}</h3>
-                <span className="font-mono text-[10.5px] text-faint uppercase tracking-wider">
-                  {p.where}
-                </span>
+      {data.shipped.length > 0 ? (
+        <section className="mb-14">
+          <SectionHead label="Shipped" mono="projects · owned" />
+          <div className="space-y-5">
+            {data.shipped.map((p, i) => (
+              <div
+                key={i}
+                className="border-l border-hair pl-5 py-1 hover:border-[rgba(212,165,116,0.5)] transition-colors"
+              >
+                <div className="flex items-baseline gap-3 flex-wrap">
+                  <h3 className="font-serif-h text-[18px]">{p.title}</h3>
+                  {p.where && (
+                    <span className="font-mono text-[10.5px] text-faint uppercase tracking-wider">
+                      {p.where}
+                    </span>
+                  )}
+                </div>
+                {p.blurb && (
+                  <p className="text-[14px] text-dim mt-1.5 leading-relaxed">{p.blurb}</p>
+                )}
               </div>
-              <p className="text-[14px] text-dim mt-1.5 leading-relaxed">{p.blurb}</p>
-            </div>
-          ))}
-        </div>
-        <Attribution sources={data.shippedSources} />
-      </section>
+            ))}
+          </div>
+          <Attribution sources={data.shippedSources} />
+        </section>
+      ) : null}
 
-      <section className="mb-14">
-        <SectionHead label="What I'm optimizing for" mono="current intent" />
-        <div
-          className="prose-warm text-[15.5px] leading-relaxed font-serif-h"
-          style={{ fontWeight: 300 }}
-        >
-          <p>{data.optimizingFor.body}</p>
-        </div>
-        <Attribution sources={data.optimizingFor.sources} />
-      </section>
+      {data.optimizingFor.body ? (
+        <section className="mb-14">
+          <SectionHead label="What I'm optimizing for" mono="current intent" />
+          <div
+            className="prose-warm text-[15.5px] leading-relaxed font-serif-h"
+            style={{ fontWeight: 300 }}
+          >
+            <p>{data.optimizingFor.body}</p>
+          </div>
+          <Attribution sources={data.optimizingFor.sources} />
+        </section>
+      ) : null}
 
       <div className="pt-8 border-t border-hair-soft flex items-center justify-between font-mono text-[10.5px] text-faint">
         <span>profile · v0.42 · auto-rebuilt 14d ago</span>

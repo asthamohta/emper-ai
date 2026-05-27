@@ -4,7 +4,7 @@ import { MOCK } from "./data";
 interface BuildArgs {
   email: string;
   name?: string | null;
-  goals?: Record<string, string> | null;
+  goals?: Record<string, any> | null;
   docCount?: number;
 }
 
@@ -31,52 +31,82 @@ export function buildEmperData({
       .slice(0, 2)
       .toUpperCase() || "U";
 
-  const arcBody =
-    g.career_trajectory || g.summary || MOCK.arc.body;
-  const howIWorkBody =
-    g.working_style || g.communication_style || MOCK.howIWork.body;
-  const optimizingBody =
-    g.values || g.intellectual_interests || MOCK.optimizingFor.body;
-
-  const shipped: EmperShipped[] = g.strengths
-    ? g.strengths
-        .split(/,\s*/)
-        .filter(Boolean)
-        .slice(0, 3)
-        .map((s, i) => ({
-          title: s,
-          where: g.experience_level || "—",
-          blurb: MOCK.shipped[i]?.blurb ?? "",
-        }))
-    : MOCK.shipped;
-
   const sourceLabel = docCount > 0 ? `${docCount} document${docCount === 1 ? "" : "s"}` : "your documents";
+
+  const arcBody = g.career_trajectory || g.summary || "";
+  const howIWorkBody = buildHowIWork(g);
+  const optimizingBody = g.values || g.intellectual_interests || "";
+
+  // Use extracted projects array if available, fall back to strengths heuristic
+  const shipped = buildShipped(g);
+
+  const roleLabel = buildRoleLabel(g);
 
   return {
     ...MOCK,
     user: {
       ...MOCK.user,
       name: displayName,
-      role: g.experience_level
-        ? `${g.experience_level} · ${g.industries ?? "Engineering"}`
-        : MOCK.user.role,
+      role: roleLabel,
       company: g.industries ?? MOCK.user.company,
       location: MOCK.user.location,
-      publicProfile: true,
+      publicProfile: g.profile_public !== "false",
       yearsExp: 0,
       initials,
       email,
     },
-    arc: { body: arcBody, sources: [sourceLabel, "Kira chat"] },
-    howIWork: { body: howIWorkBody, sources: [sourceLabel] },
-    optimizingFor: { body: optimizingBody, sources: ["Kira chat"] },
+    arc: { body: arcBody, sources: arcBody ? [sourceLabel, "Kira chat"] : [] },
+    howIWork: { body: howIWorkBody, sources: howIWorkBody ? [sourceLabel] : [] },
+    optimizingFor: { body: optimizingBody, sources: optimizingBody ? ["Kira chat", sourceLabel] : [] },
     shipped,
-    shippedSources: [sourceLabel],
+    shippedSources: shipped.length > 0 ? [sourceLabel] : [],
     gapQuestions: countGaps(g),
   };
 }
 
-function countGaps(g: Record<string, string>) {
+function buildRoleLabel(g: Record<string, any>): string {
+  const parts: string[] = [];
+  if (g.experience_level) parts.push(g.experience_level);
+  if (g.industries) parts.push(g.industries);
+  return parts.join(" · ");
+}
+
+function buildHowIWork(g: Record<string, any>): string {
+  const parts: string[] = [];
+  if (g.working_style) parts.push(g.working_style);
+  if (g.communication_style) parts.push(g.communication_style);
+  if (g.skills) parts.push(`Stack: ${g.skills}`);
+  return parts.join(" · ") || "";
+}
+
+function buildShipped(g: Record<string, any>): EmperShipped[] {
+  // Prefer structured projects array from extraction
+  const projects = Array.isArray(g.projects) ? g.projects : [];
+  if (projects.length > 0) {
+    return projects.slice(0, 6).map((p: any) => ({
+      title: p.title || "Untitled project",
+      where: p.timeframe || p.role || "",
+      blurb: p.description || p.highlights || "",
+    }));
+  }
+
+  // Fall back to strengths as a last resort
+  if (g.strengths) {
+    return g.strengths
+      .split(/,\s*/)
+      .filter(Boolean)
+      .slice(0, 3)
+      .map((s: string) => ({
+        title: s,
+        where: g.experience_level || "",
+        blurb: "",
+      }));
+  }
+
+  return [];
+}
+
+function countGaps(g: Record<string, any>) {
   const interesting = [
     "career_trajectory",
     "working_style",

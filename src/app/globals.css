@@ -170,7 +170,7 @@
     font-weight: 500;
     border: 1px solid var(--border);
     background: #131313;
-    color: var(--text);
+    color: currentColor;
     transition: background 120ms, border-color 120ms;
     white-space: nowrap;
   }
@@ -207,7 +207,7 @@
     font-size: 10.5px;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--text-dim);
+    color: currentColor;
     background: #131313;
     border: 1px solid var(--border);
     white-space: nowrap;

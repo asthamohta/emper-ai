@@ -17,7 +17,7 @@ export function Onboarding({
   const [step, setStep] = React.useState(0);
   const [extractedAttrs, setExtractedAttrs] =
     React.useState<Record<string, string> | null>(null);
-  const [stagedFiles, setStagedFiles] = React.useState<File[]>([]);
+  const [stagedItems, setStagedItems] = React.useState<StagedFile[]>([]);
 
   return (
     <div
@@ -41,7 +41,7 @@ export function Onboarding({
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            {[0, 1, 2, 3].map((i) => (
+            {[0, 1, 2].map((i) => (
               <div
                 key={i}
                 className="h-[2px] rounded-full transition-all"
@@ -52,7 +52,7 @@ export function Onboarding({
               />
             ))}
           </div>
-          <span className="font-mono text-[10.5px] text-faint">{step + 1}/4</span>
+          <span className="font-mono text-[10.5px] text-faint">{step + 1}/3</span>
           <button onClick={onExit} className="btn btn-ghost text-faint">
             <Icon name="x" size={12} />
             exit
@@ -63,15 +63,15 @@ export function Onboarding({
       <div className="flex-1 overflow-auto">
         {step === 0 && (
           <DumpStep
-            onNext={(files) => {
-              setStagedFiles(files);
+            onNext={(items) => {
+              setStagedItems(items);
               setStep(1);
             }}
           />
         )}
         {step === 1 && (
           <ProcessingStep
-            files={stagedFiles}
+            stagedItems={stagedItems}
             liveBackend={liveBackend}
             onNext={(attrs) => {
               setExtractedAttrs(attrs);
@@ -83,23 +83,30 @@ export function Onboarding({
           <FirstChatStep
             userFirstName={userFirstName}
             liveBackend={liveBackend}
-            onNext={() => setStep(3)}
+            extractedAttrs={extractedAttrs}
+            onNext={onExit}
           />
-        )}
-        {step === 3 && (
-          <PreviewStep extractedAttrs={extractedAttrs} onDone={onExit} />
         )}
       </div>
     </div>
   );
 }
 
-type StagedFile = { file?: File; name: string; size: string; id: string };
+type StagedFile = {
+  file?: File;
+  name: string;
+  size: string;
+  id: string;
+  sourceType?: "github" | "website" | "paper";
+  url?: string;
+};
 
-function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
+function DumpStep({ onNext }: { onNext: (items: StagedFile[]) => void }) {
   const [staged, setStaged] = React.useState<StagedFile[]>([]);
   const [hover, setHover] = React.useState(false);
   const [github, setGithub] = React.useState("");
+  const [website, setWebsite] = React.useState("");
+  const [paper, setPaper] = React.useState("");
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   function formatSize(bytes: number) {
@@ -131,9 +138,9 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
         className="font-serif-h text-[16px] text-dim leading-relaxed max-w-[520px]"
         style={{ fontWeight: 300 }}
       >
-        Resumes, LinkedIn export, SOPs, project docs, blog posts. Nothing is shown
-        to anyone — Kira reads them, extracts attributes, then discards the raw
-        files if you want.
+        Resumes, LinkedIn export, project docs, blog posts — plus GitHub, website,
+        and research papers by URL. Nothing is shown to anyone — Kira reads them,
+        extracts attributes, then discards the raw files if you want.
       </p>
 
       <div
@@ -191,32 +198,87 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
-        <Icon name="github" size={14} className="text-dim" />
-        <input
-          value={github}
-          onChange={(e) => setGithub(e.target.value)}
-          placeholder="github.com/yourname"
-          className="flex-1 text-[13px] font-mono placeholder:text-faint"
-        />
-        <button
-          onClick={() => {
-            if (github) {
-              setStaged((s) => [
-                ...s,
-                {
-                  name: github,
-                  size: "—",
-                  id: `gh-${github}-${Math.random()}`,
-                },
-              ]);
-              setGithub("");
-            }
-          }}
-          className="btn btn-ghost text-faint"
-        >
-          add
-        </button>
+      <div className="mt-6 space-y-2">
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+          <Icon name="github" size={14} className="text-dim" />
+          <input
+            value={github}
+            onChange={(e) => setGithub(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && github) {
+                setStaged((s) => [...s, { name: github, size: "url", id: `gh-${github}-${Math.random()}`, sourceType: "github", url: github }]);
+                setGithub("");
+              }
+            }}
+            placeholder="github.com/yourname"
+            className="flex-1 text-[13px] font-mono placeholder:text-faint"
+          />
+          <button
+            onClick={() => {
+              if (github) {
+                setStaged((s) => [...s, { name: github, size: "url", id: `gh-${github}-${Math.random()}`, sourceType: "github", url: github }]);
+                setGithub("");
+              }
+            }}
+            className="btn btn-ghost text-faint"
+          >
+            add
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+          <Icon name="link" size={14} className="text-dim" />
+          <input
+            value={website}
+            onChange={(e) => setWebsite(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && website) {
+                setStaged((s) => [...s, { name: website, size: "url", id: `ws-${website}-${Math.random()}`, sourceType: "website", url: website }]);
+                setWebsite("");
+              }
+            }}
+            placeholder="yourwebsite.com or portfolio URL"
+            className="flex-1 text-[13px] font-mono placeholder:text-faint"
+          />
+          <button
+            onClick={() => {
+              if (website) {
+                setStaged((s) => [...s, { name: website, size: "url", id: `ws-${website}-${Math.random()}`, sourceType: "website", url: website }]);
+                setWebsite("");
+              }
+            }}
+            className="btn btn-ghost text-faint"
+          >
+            add
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+          <Icon name="doc" size={14} className="text-dim" />
+          <input
+            value={paper}
+            onChange={(e) => setPaper(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && paper) {
+                setStaged((s) => [...s, { name: paper, size: "url", id: `pa-${paper}-${Math.random()}`, sourceType: "paper", url: paper }]);
+                setPaper("");
+              }
+            }}
+            placeholder="arxiv.org/abs/... or paper URL"
+            className="flex-1 text-[13px] font-mono placeholder:text-faint"
+          />
+          <button
+            onClick={() => {
+              if (paper) {
+                setStaged((s) => [...s, { name: paper, size: "url", id: `pa-${paper}-${Math.random()}`, sourceType: "paper", url: paper }]);
+                setPaper("");
+              }
+            }}
+            className="btn btn-ghost text-faint"
+          >
+            add
+          </button>
+        </div>
       </div>
 
       {staged.length > 0 && (
@@ -230,11 +292,15 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
                 key={f.id}
                 className="flex items-center gap-3 px-3 py-2 rounded-md border border-hair-soft bg-elev/30"
               >
-                <Icon name="doc" size={13} className="text-dim" />
+                <Icon name={f.sourceType === "github" ? "github" : f.sourceType === "website" ? "link" : "doc"} size={13} className="text-dim" />
                 <span className="text-[12.5px] font-mono flex-1 truncate">
                   {f.name}
                 </span>
-                <span className="font-mono text-[10.5px] text-faint">{f.size}</span>
+                {f.sourceType ? (
+                  <span className="font-mono text-[10px] text-accent uppercase tracking-wider">{f.sourceType}</span>
+                ) : (
+                  <span className="font-mono text-[10.5px] text-faint">{f.size}</span>
+                )}
                 <button
                   onClick={() => setStaged((arr) => arr.filter((x) => x.id !== f.id))}
                   className="text-faint hover:text-[--text]"
@@ -255,9 +321,7 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
           I&apos;ll add more later →
         </button>
         <button
-          onClick={() =>
-            onNext(staged.map((s) => s.file).filter((f): f is File => !!f))
-          }
+          onClick={() => onNext(staged)}
           className="btn btn-accent"
         >
           Process {staged.length}{" "}
@@ -270,11 +334,11 @@ function DumpStep({ onNext }: { onNext: (files: File[]) => void }) {
 }
 
 function ProcessingStep({
-  files,
+  stagedItems,
   liveBackend,
   onNext,
 }: {
-  files: File[];
+  stagedItems: StagedFile[];
   liveBackend: boolean;
   onNext: (attrs: Record<string, string> | null) => void;
 }) {
@@ -305,22 +369,42 @@ function ProcessingStep({
     let cancelled = false;
 
     async function run() {
-      // Real upload — only if backend live AND we have real files.
       let realResult: Record<string, string> | null = null;
-      if (liveBackend && files.length > 0) {
-        const form = new FormData();
-        files.forEach((f) => form.append("files", f));
-        try {
-          const res = await fetch("/api/ingest/candidate", {
-            method: "POST",
-            body: form,
-          });
-          if (res.ok) {
-            const json = await res.json();
-            realResult = (json.extractedContext as Record<string, string>) ?? null;
+      if (liveBackend && stagedItems.length > 0) {
+        const fileItems = stagedItems.filter((s) => s.file);
+        const urlItems = stagedItems.filter((s) => s.sourceType && s.url);
+
+        // Upload files to candidate ingest
+        if (fileItems.length > 0) {
+          try {
+            const form = new FormData();
+            fileItems.forEach((s) => form.append("files", s.file!));
+            const res = await fetch("/api/ingest/candidate", { method: "POST", body: form });
+            if (res.ok) {
+              const json = await res.json();
+              realResult = (json.extractedContext as Record<string, string>) ?? null;
+            }
+          } catch {
+            // ignore
           }
-        } catch {
-          // ignore; fall through to mock attrs
+        }
+
+        // Ingest URL-based sources in parallel
+        if (urlItems.length > 0) {
+          await Promise.allSettled(
+            urlItems.map((s) => {
+              const endpoint = s.sourceType === "github" ? "/api/ingest/github" : "/api/ingest/source";
+              return fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(
+                  s.sourceType === "github"
+                    ? { username: s.url }
+                    : { url: s.url, sourceType: s.sourceType }
+                ),
+              });
+            })
+          );
         }
       }
       // Floor the visible processing at 5.4s so the user sees the event log
@@ -339,7 +423,7 @@ function ProcessingStep({
       cancelled = true;
       clearInterval(id);
     };
-  }, [files, liveBackend]);
+  }, [stagedItems, liveBackend]);
 
   const counters = [
     { label: "roles found", target: 4, t: 2200 },
@@ -427,26 +511,34 @@ function ProcessingStep({
 function FirstChatStep({
   liveBackend,
   userFirstName,
+  extractedAttrs,
   onNext,
 }: {
   liveBackend: boolean;
   userFirstName: string;
+  extractedAttrs: Record<string, string> | null;
   onNext: () => void;
 }) {
   type Msg = { from: "kira" | "user"; text: string };
-  const opening: Msg[] = React.useMemo(
-    () => [
-      {
-        from: "kira",
-        text: `Hey ${userFirstName}. I've read through what you sent. I have a few things I can't get from documents.`,
-      },
-      {
-        from: "kira",
-        text: "Walk me through why you're looking right now — not what's on your LinkedIn, the actual reason.",
-      },
-    ],
-    [userFirstName]
-  );
+  const opening: Msg[] = React.useMemo(() => {
+    if (extractedAttrs && Object.keys(extractedAttrs).length > 0) {
+      const parts: string[] = [];
+      if (extractedAttrs.experience_level) parts.push(extractedAttrs.experience_level);
+      if (extractedAttrs.industries) parts.push(extractedAttrs.industries);
+      if (extractedAttrs.skills) parts.push(`skills: ${extractedAttrs.skills}`);
+      const summary = parts.length > 0 ? `I see ${parts.join(" · ")}.` : "I've read through what you sent.";
+
+      return [
+        { from: "kira", text: `Hey ${userFirstName}. ${summary} I have a few things I can't get from documents.` },
+        { from: "kira", text: "What's behind your search right now — are you actively trying to leave, or just exploring options? Tell me what's changed for you." },
+      ];
+    }
+
+    return [
+      { from: "kira", text: `Hey ${userFirstName}. I've read through what you sent. I have a few things I can't get from documents.` },
+      { from: "kira", text: "Walk me through why you're looking right now — not what's on your LinkedIn, the actual reason." },
+    ];
+  }, [userFirstName, extractedAttrs]);
 
   const fallbackFollowups = React.useMemo<Msg[]>(
     () => [
@@ -474,9 +566,61 @@ function FirstChatStep({
   const [input, setInput] = React.useState("");
   const [turn, setTurn] = React.useState(0);
   const [sending, setSending] = React.useState(false);
+  const [kiraIsDone, setKiraIsDone] = React.useState(false);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  const MAX_TURNS = 4;
+  const MAX_TURNS = 5;
+
+  function checkIfKiraIsDone(text: string) {
+    const lower = text.toLowerCase();
+    return (
+      lower.includes("all set") ||
+      lower.includes("don't need to ask") ||
+      lower.includes("take it from here") ||
+      lower.includes("start matching") ||
+      lower.includes("nothing critical is missing") ||
+      lower.includes("that's everything") ||
+      lower.includes("building your profile") ||
+      lower.includes("stay tuned")
+    );
+  }
+
+  // If extractedAttrs already contains most high-value fields, skip the chat.
+  React.useEffect(() => {
+    if (!liveBackend || !extractedAttrs) return;
+    const required = [
+      "career_trajectory",
+      "summary",
+      "skills",
+      "experience_level",
+      "working_style",
+    ];
+    let present = 0;
+    for (const k of required) {
+      if (extractedAttrs[k] && String(extractedAttrs[k]).trim().length > 0) present++;
+    }
+    // If 4 or more high-value fields present, skip asking questions.
+    if (present >= 4) {
+      (async () => {
+        try {
+          const saveGoals = {
+            ...extractedAttrs,
+            completed_at: new Date().toISOString(),
+            conversation_summary: "no_questions_needed",
+          } as Record<string, string>;
+          await fetch("/api/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages: [], saveGoals }),
+          });
+          fetch("/api/match/run", { method: "POST" }).catch(() => {});
+        } catch {
+          // ignore
+        }
+        onNext();
+      })();
+    }
+  }, [extractedAttrs, liveBackend, onNext]);
 
   React.useEffect(() => {
     if (scrollRef.current) {
@@ -506,10 +650,27 @@ function FirstChatStep({
         role: m.from === "kira" ? ("assistant" as const) : ("user" as const),
         content: m.text,
       }));
+      // compute missing fields to send to the assistant
+      const requiredFields = [
+        "career_trajectory",
+        "summary",
+        "skills",
+        "experience_level",
+        "industries",
+        "working_style",
+      ];
+      const missingFields = requiredFields.filter(
+        (k) => !(extractedAttrs && extractedAttrs[k] && String(extractedAttrs[k]).trim().length > 0)
+      );
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: history }),
+        body: JSON.stringify({
+          messages: history,
+          extractedProfile: JSON.stringify(extractedAttrs ?? {}),
+          missingFields,
+        }),
       });
       if (!res.ok || !res.body) throw new Error("chat failed");
 
@@ -528,6 +689,7 @@ function FirstChatStep({
         });
       }
       setTurn((t) => t + 1);
+      if (checkIfKiraIsDone(acc)) setKiraIsDone(true);
     } catch {
       setMsgs((m) => [...m, fallbackFollowups[turn]]);
       setTurn((t) => t + 1);
@@ -536,16 +698,22 @@ function FirstChatStep({
     }
   }
 
-  const canContinue = turn >= MAX_TURNS;
+  const canContinue = turn >= MAX_TURNS || kiraIsDone;
 
   async function handleFinish() {
-    // Persist conversation summary to backend (best-effort)
+    // Persist conversation summary and extracted attributes to backend (best-effort)
     if (liveBackend) {
       const goalsSummary = msgs
         .filter((m) => m.from === "user")
         .map((m) => m.text)
         .join(" | ");
       try {
+        const saveGoals: Record<string, string> = {
+          conversation_summary: goalsSummary,
+          completed_at: new Date().toISOString(),
+          profile_public: "true",
+          ...extractedAttrs,
+        };
         await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -554,10 +722,7 @@ function FirstChatStep({
               role: m.from === "kira" ? "assistant" : "user",
               content: m.text,
             })),
-            saveGoals: {
-              conversation_summary: goalsSummary,
-              completed_at: new Date().toISOString(),
-            },
+            saveGoals,
           }),
         });
         // Kick off match computation in the background
@@ -646,20 +811,22 @@ function FirstChatStep({
           <Icon name="send" size={11} />
         </button>
       </div>
-      <div className="font-mono text-[10px] text-faint mt-2 px-1 flex items-center justify-between">
-        <span>
-          question {Math.min(turn + 1, MAX_TURNS + 1)} of {MAX_TURNS + 1}
-        </span>
+      {canContinue ? (
         <button
           onClick={handleFinish}
-          disabled={!canContinue}
-          className={
-            canContinue ? "text-accent hover:underline" : "text-faint cursor-not-allowed"
-          }
+          className="btn btn-accent w-full justify-center mt-3 py-2.5"
         >
-          {canContinue ? "see your profile →" : "skip remaining questions"}
+          See your profile
+          <Icon name="arrow-right" size={12} />
         </button>
-      </div>
+      ) : (
+        <div className="font-mono text-[10px] text-faint mt-2 px-1 flex items-center justify-between">
+          <span>question {turn + 1} of {MAX_TURNS}</span>
+          <button onClick={handleFinish} className="text-faint hover:text-dim">
+            skip →
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -672,6 +839,35 @@ function PreviewStep({
   onDone: () => void;
 }) {
   const [isPublic, setIsPublic] = React.useState(true);
+  const [saving, setSaving] = React.useState(false);
+
+  async function handleConfirm() {
+    setSaving(true);
+    try {
+      // Save the profile with extracted attributes
+      const saveGoals: Record<string, string> = {
+        ...extractedAttrs,
+        profile_public: isPublic ? "true" : "false",
+        confirmed_at: new Date().toISOString(),
+      };
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: [],
+          saveGoals,
+        }),
+      });
+      if (res.ok) {
+        // Trigger match computation
+        fetch("/api/match/run", { method: "POST" }).catch(() => {});
+        // Refresh the page to get fresh data from DB
+        window.location.href = "/";
+      }
+    } catch {
+      setSaving(false);
+    }
+  }
 
   const arcBody =
     extractedAttrs?.career_trajectory ??
@@ -801,9 +997,9 @@ function PreviewStep({
           <Icon name="back" size={12} />
           tweak first
         </button>
-        <button onClick={onDone} className="btn btn-accent">
-          Confirm profile
-          <Icon name="arrow-right" size={12} />
+        <button onClick={handleConfirm} disabled={saving} className="btn btn-accent">
+          {saving ? "Saving…" : "Confirm profile"}
+          {!saving && <Icon name="arrow-right" size={12} />}
         </button>
       </div>
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { Icon, type IconName } from "./Icon";
 import type { EmperUser } from "./data";
 
@@ -30,6 +31,12 @@ export function Sidebar({
   onEnterOnboarding,
   user,
 }: SidebarProps) {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+  }
   const items: Item[] = [
     { key: "self", label: "Self", icon: "user" },
     { key: "intros", label: "Intros", icon: "inbox", badge: introsBadge },
@@ -126,7 +133,13 @@ export function Sidebar({
               profile · {user.publicProfile ? "public" : "private"}
             </div>
           </div>
-          <Icon name="settings" size={13} className="text-faint" />
+          <button
+            onClick={handleLogout}
+            className="text-faint hover:text-[--text] transition-colors"
+            title="Log out"
+          >
+            <Icon name="logout" size={13} />
+          </button>
         </div>
       </div>
     </aside>

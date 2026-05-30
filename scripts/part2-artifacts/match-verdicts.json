@@ -1,0 +1,58 @@
+[
+  {
+    "match_verdict": "no_match",
+    "confidence": 0.92,
+    "surface_to_human": false,
+    "reasoning": "The conversation correctly identified and surfaced a genuine mismatch: the role requires production ownership across container orchestration, serverless function lifecycle, GPU scheduling, and inference latency from day one, while the candidate's depth is concentrated in inference and CUDA work with no production ownership of container runtimes or scheduler internals. Both personas acknowledged this gap explicitly and accurately. The candidate also lacks Go/Rust experience, which is a stated hard requirement alongside C++. The conversation reached a well-grounded no-match conclusion supported by the underlying evidence, and the walk-away was appropriate and timely.",
+    "evidence_for": [
+      "Candidate has strong Python skills matching the role's Python requirement",
+      "Candidate has C++ exposure (18% of GitHub output, profiling and one targeted change at Stripe), partially satisfying the systems language requirement",
+      "Candidate's inference latency work is directly relevant to one of the four stated scope areas",
+      "Candidate's open-source work (847-star vLLM quantization repo) aligns with the role's preference for shipped open-source infra projects",
+      "Candidate's ownership mentality, direct communication style, and comfort with small teams align with the cultural profile"
+    ],
+    "evidence_against": [
+      "Candidate explicitly has no production ownership of container orchestration or scheduler internals \u2014 a hard requirement domain",
+      "No Go or Rust experience surfaced anywhere in the candidate evidence, and C++ depth is limited to profiling and one targeted change",
+      "Role requires P0 ownership from week one across all four domains; candidate self-identified this as a real ramp, not a minor one",
+      "Role is explicitly not an inference specialization role; candidate's depth is concentrated in inference and CUDA",
+      "Anti-fit criteria explicitly excludes candidates needing significant ramp time on core systems \u2014 candidate acknowledged this applies to her"
+    ],
+    "bias_flags": [
+      "The conversation was notably smooth and mutually agreeable \u2014 both personas were unusually direct and self-aware, which may reflect a shared articulate-agent dynamic rather than realistic interview friction. The no-match conclusion is correct, but the ease of reaching it should be noted."
+    ],
+    "agent_conversation_id": "conv_2bba2cf98a10",
+    "turn_count": 12,
+    "termination_reason": "max_turns",
+    "walked_away_by": null,
+    "cost_usd": 0.1185
+  },
+  {
+    "match_verdict": "no_match",
+    "confidence": 0.95,
+    "surface_to_human": false,
+    "reasoning": "The role has a hard requirement for retrieval, search, embeddings, and/or RAG expertise, and the candidate explicitly acknowledged she has not shipped a retrieval or ranking system to production. Her background is in inference infrastructure and fraud scoring \u2014 genuinely strong work, but orthogonal to the core domain requirement. Both personas correctly identified the gap and the role appropriately walked away. The conversation was brief, honest, and evidence-grounded on both sides.",
+    "evidence_for": [
+      "Maya has real production discipline \u2014 30k QPS fraud scoring system at Stripe and inference work at Foundry demonstrate she can ship at scale",
+      "Her benchmark-first, measurement-driven working style aligns with the role's dual research/production mindset",
+      "Her systems-level ML work (CUDA, C++, inference optimization) shows she can operate at the infrastructure depth the role requires in general",
+      "Her direct communication style and comfort with early-stage environments align with Perplexity's cultural profile"
+    ],
+    "evidence_against": [
+      "Hard requirement: retrieval, search, embeddings, or RAG domain expertise \u2014 candidate explicitly has none of this in production",
+      "Hard requirement: shipped models that serve real users in the retrieval/ranking domain \u2014 candidate's production work is fraud scoring and inference, not search",
+      "Role JD explicitly lists 'only worked on tasks without specific retrieval/search/embeddings/RAG experience' as an anti-fit criterion \u2014 this describes Maya exactly",
+      "No location or remote preference data for Maya, and the role requires SF Bay Area hybrid presence \u2014 this gap was never surfaced",
+      "No PyTorch production experience confirmed \u2014 Maya's stack is Python/CUDA/C++ focused on inference, not model training pipelines"
+    ],
+    "bias_flags": [
+      "The role's walk-away was appropriate and well-executed \u2014 no bias concerns in the decision itself",
+      "The conversation was very short (3 turns); the candidate's self-disclosure of the gap prevented deeper probing, which is correct behavior but means some hard requirements (location, PyTorch) were never tested \u2014 worth noting that the screening process relied entirely on candidate self-reporting rather than structured verification"
+    ],
+    "agent_conversation_id": "conv_4a26adf207b8",
+    "turn_count": 3,
+    "termination_reason": "role_walked_away",
+    "walked_away_by": "role",
+    "cost_usd": 0.0229
+  }
+]

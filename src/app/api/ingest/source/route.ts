@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { db } from "@/db";
 import { candidates, candidateDocuments, candidateChunks } from "@/db/schema";
 import { eq } from "drizzle-orm";
+import { triggerPersonaRebuild } from "@/lib/persona-rebuild";
 import { embedBatch, serializeEmbedding } from "@/lib/embeddings";
 import { chunkText } from "@/lib/utils";
 import {
@@ -86,11 +87,16 @@ export async function POST(request: Request) {
     await db.insert(candidateChunks).values(chunkRows);
   }
 
+  triggerPersonaRebuild(candidate.id).catch((err) =>
+    console.error(`persona rebuild failed for ${candidate.id}:`, err)
+  );
+
   return NextResponse.json({
     ok: true,
     sourceType,
     url,
     filename: scraped.filename,
     filePath,
+    personaRebuildScheduled: true,
   });
 }

@@ -169,3 +169,44 @@ def get_verdict_for_conversation(conversation_id: str) -> Optional[JudgeVerdict]
     if not row:
         return None
     return JudgeVerdict.model_validate_json(row["data"])
+
+
+# ---- Listing / dashboard helpers ---------------------------------------------
+
+
+def list_match_summaries(limit: int = 100) -> list[dict]:
+    """Return recent matches (verdict + conversation metadata + persona names)
+    in newest-first order. Suitable for a dashboard / history sidebar."""
+    with _conn() as c:
+        verdict_rows = c.execute(
+            "SELECT data FROM verdicts ORDER BY judged_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+    summaries: list[dict] = []
+    for vr in verdict_rows:
+        verdict = JudgeVerdict.model_validate_json(vr["data"])
+        conv = get_conversation(verdict.conversation_id)
+        cand = get_candidate_persona(verdict.candidate_id)
+        role = get_role_persona(verdict.role_id)
+        summaries.append(
+            {
+                "conversation_id": verdict.conversation_id,
+                "verdict_id": verdict.verdict_id,
+                "candidate_id": verdict.candidate_id,
+                "candidate_name": cand.name if cand else "(unknown)",
+                "role_id": verdict.role_id,
+                "role_title": role.role_title if role else "(unknown)",
+                "company_name": role.company_name if role else "(unknown)",
+                "match_verdict": verdict.match_verdict,
+                "confidence": verdict.confidence,
+                "surface_to_human": verdict.surface_to_human,
+                "turns": conv.turn_count if conv else 0,
+                "termination_reason": conv.termination_reason if conv else None,
+                "walked_away_by": conv.walked_away_by if conv else None,
+                "cost_usd": conv.cost_usd if conv else 0.0,
+                "judged_at": verdict.judged_at.isoformat(),
+                "started_at": conv.started_at.isoformat() if conv else None,
+            }
+        )
+    return summaries

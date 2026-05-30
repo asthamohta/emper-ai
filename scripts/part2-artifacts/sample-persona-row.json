@@ -1,0 +1,505 @@
+{
+  "id": "2fda34e3-10cf-479e-904c-26e234e91598",
+  "candidate_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+  "summary": "Maya Chen is an ML engineer with a strong focus on LLM inference systems, currently at a Series A inference startup (Foundry) after 28 months at Stripe building high-throughput ML services. Her GitHub activity shows sustained, hands-on work in LLM quantization and inference benchmarking, with meaningful open-source traction (847 stars on her vLLM quantization repo). Her technical stack spans Python, CUDA, and C++, suggesting she operates at the systems level of ML infrastructure rather than purely in modeling. She holds an MS in CS from Stanford with a focus on ML systems.",
+  "data": {
+    "name": "Maya Chen",
+    "claims": [
+      {
+        "tags": [
+          "LLM inference",
+          "quantization",
+          "vLLM",
+          "CUDA",
+          "active development"
+        ],
+        "sources": [
+          {
+            "source_url": "github.com/mayachen/vllm-quantization",
+            "source_type": "scraper_github",
+            "source_excerpt": "vllm-quantization (847 stars, Python/CUDA): 8-bit quantization for vLLM inference servers. 142 commits in the last 90 days."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0000",
+        "claim_text": "Actively developing 8-bit quantization tooling for vLLM inference servers, with 142 commits in the last 90 days",
+        "confidence": 0.85,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "verified",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "open source",
+          "community recognition",
+          "LLM inference"
+        ],
+        "sources": [
+          {
+            "source_url": "github.com/mayachen/vllm-quantization",
+            "source_type": "scraper_github",
+            "source_excerpt": "vllm-quantization (847 stars, Python/CUDA)"
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0001",
+        "claim_text": "Has meaningful open-source credibility in the LLM inference space, with 847 stars on her quantization repo",
+        "confidence": 0.85,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "verified",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "LLM inference",
+          "benchmarking",
+          "performance engineering",
+          "C++"
+        ],
+        "sources": [
+          {
+            "source_url": "github.com/mayachen/inference-bench",
+            "source_type": "scraper_github",
+            "source_excerpt": "inference-bench (91 stars, Python/C++): Microbenchmark suite for LLM inference servers \u2014 measures tokens/sec and tail latency."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0002",
+        "claim_text": "Built a microbenchmark suite for LLM inference servers measuring tokens/sec and tail latency",
+        "confidence": 0.85,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "verified",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "CUDA",
+          "GPU programming",
+          "systems engineering"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_github",
+            "source_excerpt": "Python 65%, CUDA 18%, C++ 12%, TypeScript 5%."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0003",
+        "claim_text": "Writes CUDA code, comprising approximately 18% of her public GitHub output",
+        "confidence": 0.85,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "verified",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "sustained output",
+          "open source",
+          "consistency"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_github",
+            "source_excerpt": "Consistent weekly cadence over 18 months. 27 total public repos."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0004",
+        "claim_text": "Has maintained a consistent weekly GitHub commit cadence over 18 months across 27 public repos",
+        "confidence": 0.8,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "verified",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "current role",
+          "inference startup",
+          "ML engineering",
+          "Series A"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_linkedin",
+            "source_excerpt": "ML Engineer at Foundry (Series A inference startup), 14 months tenure."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0005",
+        "claim_text": "Currently employed as an ML Engineer at Foundry, a Series A inference startup, for 14 months",
+        "confidence": 0.7,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "stated",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "Stripe",
+          "high-throughput systems",
+          "ML risk models",
+          "production ML"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_linkedin",
+            "source_excerpt": "Software Engineer at Stripe, 28 months. Worked on payment ML risk models. Shipped a real-time fraud scoring service handling 30k QPS."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0006",
+        "claim_text": "Previously at Stripe for 28 months as a Software Engineer, shipping a real-time fraud scoring service at 30k QPS",
+        "confidence": 0.68,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "stated",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "education",
+          "Stanford",
+          "ML systems"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_linkedin",
+            "source_excerpt": "MS Computer Science, Stanford (2023). Focus: ML systems."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0007",
+        "claim_text": "Holds an MS in Computer Science from Stanford (2023) with a focus on ML systems",
+        "confidence": 0.7,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "stated",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "education",
+          "UIUC",
+          "computer engineering"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_linkedin",
+            "source_excerpt": "BS Computer Engineering, UIUC (2021)."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0008",
+        "claim_text": "Holds a BS in Computer Engineering from UIUC (2021)",
+        "confidence": 0.7,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "stated",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "ML fundamentals",
+          "transformers",
+          "education",
+          "community"
+        ],
+        "sources": [
+          {
+            "source_url": "github.com/mayachen/transformer-from-scratch",
+            "source_type": "scraper_github",
+            "source_excerpt": "transformer-from-scratch (234 stars, Python): Educational GPT-2 implementation with annotated forward/backward pass."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0009",
+        "claim_text": "Capable of building educational ML content \u2014 her GPT-2 from-scratch repo with annotated forward/backward pass has 234 stars",
+        "confidence": 0.75,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "verified",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "startup",
+          "early-stage",
+          "ambiguity tolerance"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_linkedin",
+            "source_excerpt": "ML Engineer at Foundry (Series A inference startup), 14 months tenure."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0010",
+        "claim_text": "Comfortable operating in early-stage startup environments, inferred from current role at a Series A company",
+        "confidence": 0.45,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "ML systems",
+          "systems engineering",
+          "hybrid profile",
+          "technical_interests"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "scraper_github",
+            "source_excerpt": "Python 65%, CUDA 18%, C++ 12%, TypeScript 5%. Repos span quantization, inference benchmarking, and transformer implementation."
+          },
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Described interest in low-level systems work and bridging the gap between research outputs and production deployment."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0011",
+        "claim_text": "Works at the intersection of ML and systems engineering rather than pure modeling or pure infrastructure",
+        "confidence": 0.65,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 2
+      },
+      {
+        "tags": [
+          "working_style",
+          "benchmarking",
+          "rigor"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Tends to begin with a small hypothesis and measure first; shipping without a benchmark causes discomfort."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0012",
+        "claim_text": "Works in long, focused sessions starting from a small testable hypothesis, instrumenting systems before making changes, and is uncomfortable shipping without a benchmark.",
+        "confidence": 0.82,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "decision_making",
+          "data-driven",
+          "rigor"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Runs comparisons before committing to an approach; has discarded multi-week efforts when data showed the direction was wrong."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0013",
+        "claim_text": "Makes decisions anchored in measurable evidence, routinely running comparative tests before committing, and is willing to discard weeks of work if benchmarks indicate the wrong direction.",
+        "confidence": 0.85,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "communication",
+          "directness",
+          "working_style"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Drafts and rewrites messages to strip hedging language; favors a single sharp question over multiple vague ones."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0014",
+        "claim_text": "Communicates in a direct, terse style, actively removes softening language from written messages, and prefers asking one precise question over several vague ones.",
+        "confidence": 0.83,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "collaboration",
+          "team_size",
+          "async"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Has expressed discomfort when many engineers share the same code path; defaults to async and written communication."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0015",
+        "claim_text": "Prefers small teams of roughly five or fewer engineers on a shared code path, and is comfortable with asynchronous, writing-first collaboration.",
+        "confidence": 0.8,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "professional_goals",
+          "ownership",
+          "career_trajectory"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Explicitly described wanting to own a system fully, avoiding management, and optimizing for ownership and learning rather than title."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0016",
+        "claim_text": "Wants end-to-end ownership of a critical system, is not seeking a management role in the near term, and prioritizes learning and ownership over title progression.",
+        "confidence": 0.85,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "stated",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "technical_interests",
+          "inference infrastructure",
+          "research-to-production"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Described interest in low-level systems work and bridging the gap between research outputs and production deployment."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0017",
+        "claim_text": "Technical interests center on inference infrastructure, low-level optimization, and the boundary between research and production \u2014 specifically making research artifacts production-ready.",
+        "confidence": 0.87,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "stated",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "working_style",
+          "measurability",
+          "impact"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Expressed aversion to unclear directives and situations where the effect of one's work is not directly visible."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0018",
+        "claim_text": "Strongly dislikes vague mandates and work where impact cannot be directly observed or measured.",
+        "confidence": 0.82,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "conflict_resolution",
+          "data-driven",
+          "communication"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Approaches conflict calmly and structurally; frustration arises when the other party won't agree to a data-driven resolution."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0019",
+        "claim_text": "Handles conflict by restating the other party's position before responding, but becomes frustrated when disagreements remain opinion-based and the other side refuses to commit to a measurable comparison.",
+        "confidence": 0.8,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "risk_tolerance",
+          "ownership",
+          "organizational_dynamics"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Comfortable taking technical bets but cautious about organizational ambiguity and unclear ownership lines."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0020",
+        "claim_text": "Has high tolerance for technical risk but lower tolerance for organizational risk, and is wary of unclear ownership structures.",
+        "confidence": 0.81,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      },
+      {
+        "tags": [
+          "energy_patterns",
+          "working_style",
+          "productivity"
+        ],
+        "sources": [
+          {
+            "source_url": null,
+            "source_type": "ai_chat_history",
+            "source_excerpt": "Energy and output peak in the evening and late night; most serious technical writing happens in that window."
+          }
+        ],
+        "claim_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940_merged_0021",
+        "claim_text": "Most productive in evening and late-night hours, with substantive technical writing typically occurring between roughly 9pm and 2am.",
+        "confidence": 0.75,
+        "subject_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+        "evidence_tier": "inferred",
+        "discrepancy_flag": null,
+        "corroboration_count": 1
+      }
+    ],
+    "summary": "Maya Chen is an ML engineer with a strong focus on LLM inference systems, currently at a Series A inference startup (Foundry) after 28 months at Stripe building high-throughput ML services. Her GitHub activity shows sustained, hands-on work in LLM quantization and inference benchmarking, with meaningful open-source traction (847 stars on her vLLM quantization repo). Her technical stack spans Python, CUDA, and C++, suggesting she operates at the systems level of ML infrastructure rather than purely in modeling. She holds an MS in CS from Stanford with a focus on ML systems.",
+    "built_at": "2026-05-30T19:49:54.798609Z",
+    "candidate_id": "6a39d259-8f68-46ab-b5ad-6eb5ffe00940",
+    "explicit_gaps": [
+      "No compensation expectations or band stated anywhere in the data",
+      "No location or remote/hybrid/onsite preference indicated",
+      "No information on whether she is actively looking or passively open to opportunities",
+      "No data on preferred company stage, team size, or domain focus going forward",
+      "No portfolio, personal site, or publications scraped \u2014 depth of research contributions unknown",
+      "No information about her role scope at Foundry (IC vs. tech lead, team size, ownership areas)",
+      "No data on her experience with distributed training, only inference-side work is visible",
+      "No form responses \u2014 self-reported preferences entirely absent"
+    ],
+    "system_prompt": "You are the AI persona representing Maya Chen. You are speaking to a company persona that is considering whether this person would be a good fit for an open role.\n\nYOU ARE NOT TRYING TO GET HIRED. You... (truncated for artifact; 7051 chars total)",
+    "stated_preferences": []
+  },
+  "claim_count": 22,
+  "corroborated_claim_count": 1,
+  "discrepancy_count": 0,
+  "single_source_count": 21,
+  "built_at": "2026-05-30T19:49:54.798000",
+  "model_version": "sonnet-4-6/v1_multi_source_2026_05"
+}

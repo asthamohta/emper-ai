@@ -8,7 +8,13 @@ from datetime import datetime, timezone
 import pytest
 
 from src.models.conversation import Conversation, Turn
-from src.models.persona import CandidatePersona, Claim, RolePersona, StatedPreference
+from src.models.persona import (
+    CandidatePersona,
+    Claim,
+    RolePersona,
+    SourceAttribution,
+    StatedPreference,
+)
 
 LIVE = os.getenv("ANTHROPIC_API_KEY", "").startswith("sk-")
 
@@ -34,20 +40,31 @@ def maya_persona() -> CandidatePersona:
                 subject_id="c_001",
                 claim_text="Has shipped CUDA-level optimizations for LLM inference",
                 evidence_tier="verified",
-                source="github.com/mayachen/vllm-quantization",
-                evidence_excerpt="847 stars; 142 commits in last 90 days",
+                sources=[
+                    SourceAttribution(
+                        source_type="scraper_github",
+                        source_excerpt="847 stars; 142 commits in last 90 days",
+                        source_url="github.com/mayachen/vllm-quantization",
+                    )
+                ],
                 confidence=0.9,
                 tags=["ml_infra", "cuda", "inference"],
+                corroboration_count=1,
             ),
             Claim(
                 claim_id="c_001_claim_0001",
                 subject_id="c_001",
                 claim_text="Prior production experience at scale (Stripe payments ML)",
                 evidence_tier="stated",
-                source="linkedin",
-                evidence_excerpt="Shipped a real-time fraud scoring service handling 30k QPS",
+                sources=[
+                    SourceAttribution(
+                        source_type="scraper_linkedin",
+                        source_excerpt="Shipped a real-time fraud scoring service handling 30k QPS",
+                    )
+                ],
                 confidence=0.7,
                 tags=["production", "ml"],
+                corroboration_count=1,
             ),
         ],
         stated_preferences=[
@@ -78,20 +95,30 @@ def caldera_role() -> RolePersona:
                 subject_id="r_001",
                 claim_text="3+ years ML infrastructure experience required",
                 evidence_tier="stated",
-                source="JD",
-                evidence_excerpt="3+ years ML infrastructure experience",
+                sources=[
+                    SourceAttribution(
+                        source_type="role_jd",
+                        source_excerpt="3+ years ML infrastructure experience",
+                    )
+                ],
                 confidence=0.95,
                 tags=["hard_requirement", "ml_infra"],
+                corroboration_count=1,
             ),
             Claim(
                 claim_id="r_001_claim_0001",
                 subject_id="r_001",
                 claim_text="Comfortable with CUDA or willing to learn fast",
                 evidence_tier="stated",
-                source="JD",
-                evidence_excerpt="Comfortable with CUDA or willing to learn fast",
+                sources=[
+                    SourceAttribution(
+                        source_type="role_jd",
+                        source_excerpt="Comfortable with CUDA or willing to learn fast",
+                    )
+                ],
                 confidence=0.9,
                 tags=["soft_requirement", "cuda"],
+                corroboration_count=1,
             ),
         ],
         stated_preferences=[

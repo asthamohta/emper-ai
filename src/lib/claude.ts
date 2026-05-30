@@ -64,6 +64,12 @@ ${combined.slice(0, 12000)}`,
   return {};
 }
 
+/**
+ * DEPRECATED as of 2026-05-28.
+ * Match scoring now happens in the Python pipeline via
+ * src/lib/agents-client.ts → runMatch. This is only kept because
+ * runMatchesForCandidate (also deprecated) still calls it.
+ */
 export async function scoreMatch(
   candidateContext: string,
   jobContext: string,

@@ -1,4 +1,14 @@
-"""Hand-crafted role/company data for local testing."""
+"""Hand-crafted role/company data for local testing.
+
+All three roles are AI-native startups, picked for meaningful contrast:
+  - r_001 Modal Labs        — pure ML infra (founding ML eng energy, small team)
+  - r_002 Cursor (Anysphere)— AI product company at scale-up stage
+  - r_003 Perplexity        — applied AI research/retrieval at a growing product co
+
+Numbers (headcount, funding, comp) are best-effort approximations from public
+sources as of 2025 — they're plausible enough for the agent layer to reason
+over, but should be verified before any go-to-market use.
+"""
 
 from typing import Optional
 
@@ -6,161 +16,174 @@ ROLES: list[dict] = [
     {
         "role_id": "r_001",
         "company": {
-            "name": "Caldera AI",
-            "stage": "Series A",
-            "size": "23 people",
-            "funding_total": "$18M",
-            "investors": ["Founders Fund", "Conviction"],
-            "mission": "Make AI inference 10x cheaper for AI-first startups",
+            "name": "Modal Labs",
+            "stage": "Series B",
+            "size": "~80 people",
+            "funding_total": "~$80M (Series A led by Redpoint, Series B led by Lux Capital)",
+            "investors": ["Redpoint", "Lux Capital", "Amplify Partners"],
+            "mission": "Run any Python code in the cloud with zero config — serverless GPU + CPU infrastructure for AI builders.",
             "culture_notes": (
-                "Async-first. Small team. Eng-led. Comfortable with ambiguity. "
-                "We ship to prod multiple times per week. On-call rotates across "
-                "the whole eng team — no separate SRE."
+                "Small, eng-driven, founder-led (CEO Erik Bernhardsson, ex-Spotify ML). "
+                "Ships multiple times per day. Async + remote-friendly with NYC office "
+                "and SF presence. Engineering blog is taken seriously — writing is part "
+                "of the job. Everyone on call. Strong opinions about Python ergonomics."
             ),
-            "website": "caldera.ai",
+            "website": "modal.com",
         },
         "role": {
-            "title": "Founding ML Engineer",
+            "title": "Founding ML Infrastructure Engineer",
             "description": (
-                "We're building the next-gen inference layer for AI-first startups. "
-                "You'll own our quantization and serving stack end-to-end — from CUDA "
-                "kernels to the customer-facing API. Reporting directly to the CTO."
+                "Own a slice of Modal's GPU runtime end-to-end: container orchestration, "
+                "the serverless function lifecycle, inference latency, and the SDK that "
+                "millions of devs (will) use to spin up GPUs. You'll work directly with "
+                "the founders and own a P0 system from week one."
             ),
             "hard_requirements": [
-                "3+ years ML infrastructure experience",
-                "Production experience with inference systems (vLLM, TensorRT, or equivalent)",
-                "Comfortable with CUDA or willing to learn fast",
-                "Bay Area or willing to relocate within 60 days",
+                "4+ years systems / infrastructure engineering",
+                "Production experience with one of: container runtimes, distributed systems, GPU scheduling",
+                "Strong Python and at least one of Go / Rust / C++",
+                "NYC (HQ) or SF (in-office 3+ days/wk)",
             ],
             "soft_requirements": [
-                "Self-directed",
-                "Has shipped open-source ML infra projects",
-                "Strong writing / can explain technical decisions",
-                "Has worked at a startup before",
+                "Has shipped open-source infra projects",
+                "Writes clearly (engineering blog contributions welcome)",
+                "Comfortable owning systems that other engineers depend on",
+                "Has worked at a sub-100 person company before",
             ],
             "comp_band": {
                 "base_min": 200000,
                 "base_max": 280000,
-                "equity_pct_min": 0.4,
-                "equity_pct_max": 1.2,
+                "equity_pct_min": 0.15,
+                "equity_pct_max": 0.6,
             },
-            "location": "Bay Area (SF, in-office 3 days/wk)",
+            "location": "NYC HQ (3+ days in-office) or SF",
             "deal_breakers": [
                 "Looking for big-company stability",
                 "Pure research focus with no shipping",
-                "Doesn't want to be on-call for prod issues",
+                "Won't be on-call for prod",
+                "Fully remote outside US time zones",
             ],
             "anti_fit_signals": [
-                "Wants pure research role",
+                "Optimizing primarily for title or stability",
                 "Needs strict 9-5 boundaries (this is a 50+ hour startup)",
-                "Hasn't built systems that handle real traffic",
-                "Optimizing primarily for title/stability vs ownership",
+                "Hasn't built systems that survive real traffic",
+                "Wants only-research, no-product work",
             ],
         },
     },
     {
         "role_id": "r_002",
         "company": {
-            "name": "Loom Health",
-            "stage": "Series B",
-            "size": "48 people",
-            "funding_total": "$52M",
-            "investors": ["a16z", "GV"],
-            "mission": "AI-driven clinical documentation for primary care clinics",
+            "name": "Cursor (Anysphere)",
+            "stage": "Series B+ (rapidly scaling)",
+            "size": "~80 people (growing fast)",
+            "funding_total": "~$170M+ (Andreessen Horowitz, Thrive, OpenAI Startup Fund, Stripe founders)",
+            "investors": ["a16z", "Thrive Capital", "OpenAI Startup Fund"],
+            "mission": "Build the AI-powered code editor. Make programming 10x more productive.",
             "culture_notes": (
-                "Hybrid (NYC HQ, 2 days in-office for NYC team, remote OK elsewhere). "
-                "Product-led — eng works closely with clinicians. We are deliberate "
-                "and write a lot of design docs before shipping. HIPAA-compliant culture."
+                "SF in-office is strong cultural preference (founders + most eng in-office). "
+                "Insanely high bar — every hire is closed by the founders. "
+                "Ships features daily; the editor's Tab/agent loops are tuned constantly. "
+                "Eng-led, opinionated about latency and UX polish. Performance and craft "
+                "obsessed. No middle management — flat IC ladder."
             ),
-            "website": "loomhealth.com",
+            "website": "cursor.com",
         },
         "role": {
-            "title": "Senior Full-Stack Engineer",
+            "title": "Senior Product Engineer",
             "description": (
-                "Own a full vertical slice of our clinician-facing app. You'll work "
-                "across Next.js + Postgres + a Python AI service, and you'll talk "
-                "to actual doctors weekly to understand their workflows."
+                "Build core user-facing surfaces in the editor — Tab autocomplete, the "
+                "agent panel, multi-file edits, indexing. You'll work across our "
+                "Electron + TypeScript frontend and Python/Rust backends. Performance "
+                "and feel matter as much as correctness."
             ),
             "hard_requirements": [
-                "5+ years full-stack experience",
-                "Production TypeScript + a backend language (Python or Go preferred)",
-                "Has shipped a customer-facing product end-to-end",
+                "5+ years full-stack experience, with deep TypeScript",
+                "Has shipped a customer-facing product that users actively complain about (signal of scale)",
+                "Comfortable with native/Electron-level performance work",
+                "SF Bay Area, in-office (4+ days/wk)",
             ],
             "soft_requirements": [
-                "Comfortable talking to non-technical users (clinicians)",
-                "Cares about correctness — we're in healthcare",
-                "Has worked at a Series B-stage company before",
+                "Cares about craft, latency, and polish",
+                "Has opinions about IDE / dev-tool UX",
+                "Comfortable with monolith-ish codebases that move fast",
+                "Has worked at < 100 person company before",
             ],
             "comp_band": {
-                "base_min": 180000,
-                "base_max": 240000,
+                "base_min": 220000,
+                "base_max": 320000,
                 "equity_pct_min": 0.05,
-                "equity_pct_max": 0.20,
+                "equity_pct_max": 0.30,
             },
-            "location": "NYC (hybrid, 2 days in-office) or remote US-only",
+            "location": "SF Bay Area (in-office 4+ days/wk)",
             "deal_breakers": [
-                "Needs to be fully remote outside US time zones",
-                "Wants to work on infra-only",
-                "Uncomfortable with regulated environments",
+                "Remote-only",
+                "Wants infra-only or research-only work",
+                "Heavy design-doc culture preferred",
+                "Strict work-life balance requirements",
             ],
             "anti_fit_signals": [
-                "Wants founding/pre-seed scope (we're past that)",
                 "Optimizing for pure technical depth over user empathy",
-                "Doesn't want to write design docs",
+                "Wants founding-stage scope (we're past that)",
+                "Prefers slow, deliberate, doc-driven processes",
+                "Has not used Cursor seriously",
             ],
         },
     },
     {
         "role_id": "r_003",
         "company": {
-            "name": "Helion Labs",
-            "stage": "Series C / Frontier lab",
-            "size": "190 people",
-            "funding_total": "$420M",
-            "investors": ["Sequoia", "Index"],
-            "mission": "Build safe and capable foundation models",
+            "name": "Perplexity",
+            "stage": "Series C / late-stage",
+            "size": "~200 people",
+            "funding_total": "~$500M+ across rounds (IVP, NEA, Bezos, NVIDIA, others)",
+            "investors": ["IVP", "NEA", "Bezos Expeditions", "NVIDIA"],
+            "mission": "Build the world's most trusted AI-powered answer engine.",
             "culture_notes": (
-                "Research-driven. Publication-friendly (with safety review). Long-horizon "
-                "projects measured in months, not weeks. Strong internal seminar culture. "
-                "On-site in SF with 4 days/wk expected."
+                "Hybrid SF (HQ, 3 days in-office) with a smaller remote tail. Research and "
+                "product engineering live close together — applied research is expected to "
+                "ship to prod, not sit in papers. Strong on retrieval, RAG, and search-quality "
+                "metrics. Weekly model + retrieval ablations are normal. CTO and founding "
+                "team are deeply technical."
             ),
-            "website": "helion.ai",
+            "website": "perplexity.ai",
         },
         "role": {
-            "title": "Research Engineer, Alignment",
+            "title": "Applied AI Research Engineer, Retrieval & Search Quality",
             "description": (
-                "Join the alignment team to design and run experiments that probe "
-                "and improve the behavior of frontier models. You'll work closely "
-                "with research scientists and own infra + experiment design for "
-                "a research agenda."
+                "Improve answer quality through better retrieval, re-ranking, and grounding. "
+                "You'll design experiments, train and evaluate retrieval models, and ship "
+                "improvements that move our search quality metrics in production. Half "
+                "research mindset, half production engineer."
             ),
             "hard_requirements": [
-                "Strong ML engineering — comfortable with PyTorch and distributed training",
-                "Has co-authored at least one ML paper at a top venue (NeurIPS / ICML / ICLR / ACL)",
-                "Comfortable with long-horizon (3-6 month) research projects",
-                "On-site SF 4 days/wk",
+                "3+ years ML engineering with PyTorch in production",
+                "Has shipped models that serve real users (not only research code)",
+                "Strong on retrieval / search / embeddings / RAG",
+                "SF Bay Area or willing to relocate (3 days in-office)",
             ],
             "soft_requirements": [
-                "Genuine interest in alignment / safety as a research problem",
-                "Can communicate findings clearly (talks, writeups)",
-                "Comfortable with research code shipping to internal infra (not customers)",
+                "Co-authored ML papers at top venues (NeurIPS / ICLR / ACL / SIGIR) preferred",
+                "Cares about both offline metrics AND end-user answer quality",
+                "Comfortable reading and reproducing recent search/retrieval papers",
+                "Has run online A/B experiments on a production model",
             ],
             "comp_band": {
-                "base_min": 260000,
-                "base_max": 340000,
-                "equity_pct_min": 0.03,
-                "equity_pct_max": 0.12,
+                "base_min": 230000,
+                "base_max": 330000,
+                "equity_pct_min": 0.02,
+                "equity_pct_max": 0.10,
             },
-            "location": "SF (on-site 4 days/wk)",
+            "location": "SF Bay Area (hybrid, 3 days in-office)",
             "deal_breakers": [
-                "Wants customer-facing product work",
-                "Needs to ship to prod weekly",
-                "Not willing to be on-site",
+                "Wants pure research with no shipping",
+                "Wants founding-stage scope or full-stack product work",
+                "Cannot relocate to the Bay Area",
             ],
             "anti_fit_signals": [
-                "Optimizing for startup scope/ownership over research depth",
-                "Looking primarily for infra cost optimization work",
-                "Wants founding-engineer-style breadth",
+                "Optimizing primarily for publication count over product impact",
+                "Wants pure infra/platform work with no model involvement",
+                "Looking for early-stage scrappy ownership across the whole product",
             ],
         },
     },

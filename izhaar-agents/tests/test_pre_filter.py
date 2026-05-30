@@ -40,6 +40,24 @@ def test_comp_parse_range_handles_k_suffix():
     assert _parse_comp_range("260-340k base + equity") == (260_000, 340_000)
 
 
+def test_comp_parse_range_handles_commas_and_em_dash():
+    """Real LLM output uses comma-formatted numbers and em-dashes."""
+    assert _parse_comp_range("$200,000–$280,000 base") == (200_000, 280_000)
+    assert _parse_comp_range("$200,000—$280,000 base") == (200_000, 280_000)
+    assert _parse_comp_range("200,000 - 280,000 USD") == (200_000, 280_000)
+
+
+def test_comp_parse_range_ignores_equity_percentages():
+    """An equity percentage like 0.15%-0.60% should NOT be treated as comp."""
+    result = _parse_comp_range("$200,000–$280,000 base; 0.15%–0.60% equity")
+    assert result == (200_000, 280_000)
+
+
+def test_comp_parse_range_ignores_lone_small_numbers():
+    """4+ years experience etc. should not corrupt comp parsing."""
+    assert _parse_comp_range("$200,000–$280,000 base; 4+ years experience") == (200_000, 280_000)
+
+
 def test_comp_overlap_missing_data_is_permissive():
     assert comp_overlap("", "$200k") is True
     assert comp_overlap("$200k", "") is True
@@ -65,3 +83,39 @@ def test_pre_filter_passes_good_pair(maya_persona, caldera_role):
     passed, score = pre_filter(maya_persona, caldera_role)
     assert passed is True
     assert score > 0.0
+
+
+def test_pre_filter_passes_when_tags_have_no_overlap(maya_persona, caldera_role):
+    """Tag overlap is INFORMATIONAL, not a knockout.
+
+    LLM-generated tags use freeform vocabulary, so two related personas often
+    have zero literal overlap. The pre-filter must not knockout on this — the
+    conversation is the real filter.
+    """
+    # Strip every tag from every claim on the role side, so role_tags is empty.
+    stripped_role = caldera_role.model_copy(
+        update={"claims": [c.model_copy(update={"tags": []}) for c in caldera_role.claims]}
+    )
+    passed, _ = pre_filter(maya_persona, stripped_role)
+    assert passed is True
+
+    # Force a clean disjoint tag set on each side.
+    cand_disjoint = maya_persona.model_copy(
+        update={
+            "claims": [
+                c.model_copy(update={"tags": ["unrelated_vocab_alpha"]})
+                for c in maya_persona.claims
+            ]
+        }
+    )
+    role_disjoint = caldera_role.model_copy(
+        update={
+            "claims": [
+                c.model_copy(update={"tags": ["hard_requirement", "unrelated_vocab_beta"]})
+                for c in caldera_role.claims
+            ]
+        }
+    )
+    passed, score = pre_filter(cand_disjoint, role_disjoint)
+    assert passed is True
+    assert score == 0.0  # informational: literally zero overlap, but still passes

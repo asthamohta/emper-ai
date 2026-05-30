@@ -24,6 +24,7 @@ export const docTypeEnum = pgEnum("doc_type", [
   "website",
   "portfolio",
   "paper",
+  "ai_chat_history",                                  // NEW: pasted-in AI behavioral profile (Part 3)
   "other",
 ]);
 
@@ -46,7 +47,10 @@ export const candidates = pgTable("candidates", {
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   name: text("name").notNull().default(""),
-  goals: jsonb("goals").$type<Record<string, string>>().default({}),
+  // Was Record<string, string> — widened to unknown because extractCandidateContext
+  // already writes nested arrays (projects[]) here, and Part 2's persona-store
+  // dual-write adds _personaSync (boolean) and _personaBuiltAt (string).
+  goals: jsonb("goals").$type<Record<string, unknown>>().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -187,6 +191,98 @@ export const matches = pgTable(
   })
 );
 
+// ─── Persona / Match Pipeline (Python-backed) ─────────────────────────────────
+// New as of 2026-05-27. All matching now flows through izhaar-agents/ (Python
+// FastAPI service). Next.js is proxy + persistence + UI.
+// The older `matches` table above is DEPRECATED — see src/lib/matching.ts.
+
+import { numeric } from "drizzle-orm/pg-core";
+
+export const candidatePersonas = pgTable(
+  "candidate_personas",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    candidateId: uuid("candidate_id")
+      .notNull()
+      .references(() => candidates.id, { onDelete: "cascade" })
+      .unique(),                                                       // one persona per candidate (latest overwrites)
+    summary: text("summary"),                                          // mirror of data.summary for fast queries
+    data: jsonb("data").notNull(),                                     // full CandidatePersona JSON from Python
+    claimCount: integer("claim_count").notNull().default(0),
+    corroboratedClaimCount: integer("corroborated_claim_count").notNull().default(0),
+    discrepancyCount: integer("discrepancy_count").notNull().default(0),
+    singleSourceCount: integer("single_source_count").notNull().default(0),
+    builtAt: timestamp("built_at").notNull().defaultNow(),             // set from persona.built_at, parsed
+    modelVersion: text("model_version").notNull(),                     // e.g. "sonnet-4-6/v1_multi_source_2026_05"
+  },
+  (t) => ({
+    builtAtIdx: index("personas_built_at_idx").on(t.builtAt),          // freshness query, future cross-candidate scans
+  })
+);
+
+export const candidateConversations = pgTable(
+  "candidate_conversations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    agentConversationId: text("agent_conversation_id").notNull().unique(),  // Python's conv_xxxx — kept for cross-system debugging
+    candidateId: uuid("candidate_id")
+      .notNull()
+      .references(() => candidates.id, { onDelete: "cascade" }),
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "restrict" }),            // historical evidence; can't delete a job with verdicts
+    transcript: jsonb("transcript").notNull(),                         // Turn[]
+    terminationReason: text("termination_reason"),                     // Python emits a Literal; we keep text, validate on write
+    walkedAwayBy: text("walked_away_by"),                              // "candidate" | "role" | null; same — text, not enum
+    walkReason: text("walk_reason"),
+    turnCount: integer("turn_count"),
+    costUsd: numeric("cost_usd", { precision: 10, scale: 4 }),
+    startedAt: timestamp("started_at"),
+    endedAt: timestamp("ended_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    pairIdx: index("conv_pair_idx").on(t.candidateId, t.roleId),       // "did we already match these two?"
+  })
+);
+
+export const candidateVerdicts = pgTable(
+  "candidate_verdicts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => candidateConversations.id, { onDelete: "cascade" })
+      .unique(),                                                       // one verdict per conversation
+    candidateId: uuid("candidate_id")
+      .notNull()
+      .references(() => candidates.id, { onDelete: "cascade" }),
+    roleId: uuid("role_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "restrict" }),
+    matchVerdict: text("match_verdict").notNull(),                     // strong | good | marginal | no_match
+    confidence: numeric("confidence", { precision: 4, scale: 3 }),     // 0.000 – 1.000
+    reasoning: text("reasoning"),
+    evidenceFor: jsonb("evidence_for").$type<string[]>().default([]),
+    evidenceAgainst: jsonb("evidence_against").$type<string[]>().default([]),
+    unresolvedConcerns: jsonb("unresolved_concerns").$type<string[]>().default([]),
+    surfaceToHuman: boolean("surface_to_human").notNull().default(false),
+    biasFlags: jsonb("bias_flags").$type<string[]>().default([]),
+    modelVersion: text("model_version").notNull(),
+    judgedAt: timestamp("judged_at").notNull().defaultNow(),
+  },
+  (t) => ({
+    // FUTURE: When verdict volume grows, swap to partial index:
+    //   index("...").on(candidateId, confidence).where(sql`surface_to_human = true`)
+    // This covers WHERE + ORDER BY in one index scan. Skipping now since
+    // demo has <50 verdicts total.
+    surfaceIdx: index("verdicts_surface_idx").on(t.candidateId, t.surfaceToHuman),
+    // Postgres b-tree supports reverse scan, so plain (col, col) covers both ASC and DESC.
+    candidateJudgedIdx: index("verdicts_candidate_judged_idx").on(t.candidateId, t.judgedAt),
+  })
+);
+
+
 // ─── Relations ────────────────────────────────────────────────────────────────
 
 import { relations } from "drizzle-orm";
@@ -228,3 +324,6 @@ export type Company = typeof companies.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
 export type CompanyDocument = typeof companyDocuments.$inferSelect;
 export type Match = typeof matches.$inferSelect;
+export type CandidatePersonaRow = typeof candidatePersonas.$inferSelect;
+export type CandidateConversationRow = typeof candidateConversations.$inferSelect;
+export type CandidateVerdictRow = typeof candidateVerdicts.$inferSelect;

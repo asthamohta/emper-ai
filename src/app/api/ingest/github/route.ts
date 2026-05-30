@@ -12,6 +12,7 @@ import {
   writeGithubMarkdownFile,
 } from "@/lib/github-scraper";
 import { synthesizeProjectsForCandidate } from "@/lib/github-analyzer";
+import { triggerPersonaRebuild } from "@/lib/persona-rebuild";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -94,10 +95,16 @@ export async function POST(request: Request) {
     await db.insert(candidateChunks).values(chunkRows);
   }
 
+  // Fire persona rebuild — debounced if multiple ingests stack.
+  triggerPersonaRebuild(candidate.id).catch((err) =>
+    console.error(`persona rebuild failed for ${candidate.id}:`, err)
+  );
+
   return NextResponse.json({
     ok: true,
     githubUsername: normalized,
     filename: `github-${normalized}.md`,
     filePath,
+    personaRebuildScheduled: true,
   });
 }

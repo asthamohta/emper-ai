@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Icon } from "../Icon";
+import { ChatHistoryPasteModal } from "../ChatHistoryPasteModal";
 import { Attribution, KiraBanner, SectionHead } from "../primitives";
 import type { EmperData } from "../data";
 
@@ -12,6 +13,7 @@ interface SelfPageProps {
 
 export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
   const [isPublic, setIsPublic] = React.useState(data.user.publicProfile);
+  const [chatHistoryOpen, setChatHistoryOpen] = React.useState(false);
 
   return (
     <div className="max-w-[760px] mx-auto px-12 py-12">
@@ -30,6 +32,13 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setChatHistoryOpen(true)}
+              className="btn"
+            >
+              <Icon name="spark" size={12} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">add chat history</span>
+            </button>
             <a
               href="/api/candidate/export"
               download
@@ -126,6 +135,11 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
           shareable at emper.ai/{data.user.name.toLowerCase().replace(/\s+/g, "-")}
         </span>
       </div>
+
+      <ChatHistoryPasteModal
+        open={chatHistoryOpen}
+        onClose={() => setChatHistoryOpen(false)}
+      />
     </div>
   );
 }

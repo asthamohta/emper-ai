@@ -4,10 +4,17 @@ from src.models.persona import CandidatePersona
 def build_candidate_persona_system_prompt(persona: CandidatePersona) -> str:
     """Constructs the runtime system prompt for a candidate persona to use during conversations."""
 
-    claims_text = "\n".join([
-        f"- [{c.evidence_tier.upper()}, confidence={c.confidence:.2f}] {c.claim_text} (source: {c.source})"
-        for c in persona.claims
-    ])
+    def _fmt_sources(c) -> str:
+        srcs = ", ".join(s.source_type for s in c.sources) if c.sources else "(no source)"
+        return srcs + (f" ×{c.corroboration_count}" if c.corroboration_count > 1 else "")
+
+    claim_lines = []
+    for c in persona.claims:
+        line = f"- [{c.evidence_tier.upper()}, conf={c.confidence:.2f}] {c.claim_text} (sources: {_fmt_sources(c)})"
+        if c.discrepancy_flag:
+            line += f"  ⚠ DISCREPANCY: {c.discrepancy_flag}"
+        claim_lines.append(line)
+    claims_text = "\n".join(claim_lines)
 
     prefs_text = "\n".join([
         f"- {p.field}: {p.value} (stated in {p.source})"

@@ -1,3 +1,11 @@
+// DEPRECATED as of 2026-05-28.
+// This file's exports are no longer called by the app.
+// All matching now flows through src/lib/agents-client.ts → Python pipeline
+// (izhaar-agents/). Verdicts live in candidate_verdicts, transcripts in
+// candidate_conversations. The `matches` table is still written for
+// backward compat on the company side; that path will migrate next.
+// Kept for reference until the Python pipeline is fully validated in production.
+
 import { db } from "@/db";
 import {
   candidates,

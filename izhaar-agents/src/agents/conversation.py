@@ -23,7 +23,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Iterator, Optional
 
 from src import config
 from src.agents._client import call_claude, parse_json_strict
@@ -176,19 +176,43 @@ def _run_sycophancy_detector(last_turns: list[Turn]) -> dict:
 # ----- Main orchestrator ------------------------------------------------------
 
 
-def run_conversation(
+def run_conversation_events(
     candidate_persona: CandidatePersona,
     role_persona: RolePersona,
     max_turns: int = config.MAX_CONVERSATION_TURNS,
-) -> Conversation:
-    """Drive an adversarial conversation between the two personas to termination."""
+) -> Iterator[dict]:
+    """Generator that drives a conversation and yields lifecycle events.
+
+    Yielded event shapes:
+      {"type": "started",      "conversation_id": str, "started_at": iso}
+      {"type": "turn_started", "turn_number": int, "speaker": "role"|"candidate"}
+      {"type": "turn",         "turn": <Turn dict>}
+      {"type": "sycophancy",   "score": float, "suggested_injection": str|None,
+                               "reasoning": str}
+      {"type": "terminated",   "reason": TerminationReason,
+                               "walked_away_by": Speaker|None,
+                               "walk_reason": str|None}
+      {"type": "complete",     "conversation": <Conversation dict>}
+
+    The sync wrapper `run_conversation` consumes this generator and returns the
+    final Conversation. Streaming HTTP endpoints can forward each event as SSE.
+    """
 
     started_at = _now()
     conversation_id = f"conv_{uuid.uuid4().hex[:12]}"
     transcript: list[Turn] = []
     total_cost = 0.0
 
+    yield {
+        "type": "started",
+        "conversation_id": conversation_id,
+        "candidate_id": candidate_persona.candidate_id,
+        "role_id": role_persona.role_id,
+        "started_at": started_at.isoformat(),
+    }
+
     # ----- Turn 1: role opens. ------------------------------------------------
+    yield {"type": "turn_started", "turn_number": 1, "speaker": "role"}
     opener = call_claude(
         system=role_persona.system_prompt,
         messages=[
@@ -207,20 +231,24 @@ def run_conversation(
         label=f"role_opener:{conversation_id}",
     )
     total_cost += opener.cost_usd
-    transcript.append(
-        Turn(
-            turn_number=1,
-            speaker="role",
-            content=opener.text,
-            timestamp=_now(),
-        )
+    opener_turn = Turn(
+        turn_number=1,
+        speaker="role",
+        content=opener.text,
+        timestamp=_now(),
     )
+    transcript.append(opener_turn)
+    yield {"type": "turn", "turn": opener_turn.model_dump(mode="json")}
 
     pending_injection: Optional[str] = None
+    final_reason: Optional[TerminationReason] = None
+    final_walked_by: Optional[Speaker] = None
+    final_walk_reason: Optional[str] = None
 
     # ----- Alternating turns until termination. -------------------------------
     for turn_num in range(2, max_turns + 1):
         speaker = _next_speaker(turn_num)
+        yield {"type": "turn_started", "turn_number": turn_num, "speaker": speaker}
         system_prompt = (
             candidate_persona.system_prompt if speaker == "candidate" else role_persona.system_prompt
         )
@@ -239,10 +267,6 @@ def run_conversation(
             pending_injection = None
 
         if reminders:
-            # Append to the last user message rather than adding a new one — the
-            # API requires alternating roles, and inserting another user msg
-            # would break that constraint after we already ensured the list
-            # ends with a user message.
             messages[-1] = {
                 "role": "user",
                 "content": messages[-1]["content"] + "\n\n" + "\n".join(reminders),
@@ -257,31 +281,26 @@ def run_conversation(
             label=f"turn_{turn_num}_{speaker}:{conversation_id}",
         )
         total_cost += resp.cost_usd
-        transcript.append(
-            Turn(
-                turn_number=turn_num,
-                speaker=speaker,
-                content=resp.text,
-                timestamp=_now(),
-            )
+        new_turn = Turn(
+            turn_number=turn_num,
+            speaker=speaker,
+            content=resp.text,
+            timestamp=_now(),
         )
+        transcript.append(new_turn)
+        yield {"type": "turn", "turn": new_turn.model_dump(mode="json")}
 
         # Check termination.
         reason, walked_by, walk_reason = _check_termination(transcript, max_turns)
         if reason is not None:
-            return Conversation(
-                conversation_id=conversation_id,
-                candidate_id=candidate_persona.candidate_id,
-                role_id=role_persona.role_id,
-                transcript=transcript,
-                termination_reason=reason,
-                walked_away_by=walked_by,
-                walk_reason=walk_reason,
-                turn_count=len(transcript),
-                cost_usd=total_cost,
-                started_at=started_at,
-                ended_at=_now(),
-            )
+            final_reason, final_walked_by, final_walk_reason = reason, walked_by, walk_reason
+            yield {
+                "type": "terminated",
+                "reason": reason,
+                "walked_away_by": walked_by,
+                "walk_reason": walk_reason,
+            }
+            break
 
         # Run sycophancy detector every 4th turn.
         if turn_num >= 4 and turn_num % config.SYCOPHANCY_CHECK_EVERY_N_TURNS == 0:
@@ -289,10 +308,16 @@ def run_conversation(
             detector = _run_sycophancy_detector(sample)
             total_cost += detector.get("_cost_usd", 0.0)
             score = float(detector.get("sycophancy_score", 0.0) or 0.0)
-            # Annotate the most recent turn with the score.
             transcript[-1] = transcript[-1].model_copy(update={"sycophancy_score": score})
+            suggested = detector.get("suggested_injection")
+            yield {
+                "type": "sycophancy",
+                "turn_number": turn_num,
+                "score": score,
+                "reasoning": detector.get("reasoning"),
+                "suggested_injection": suggested,
+            }
             if score > config.SYCOPHANCY_INJECTION_THRESHOLD:
-                suggested = detector.get("suggested_injection")
                 if suggested:
                     pending_injection = (
                         f"The conversation is drifting into easy agreement. "
@@ -305,18 +330,34 @@ def run_conversation(
                         "you have not yet raised."
                     )
 
-    # If we exit the loop without returning, max_turns was hit and termination
-    # check above already returned. Defensive fallback:
-    return Conversation(
+    if final_reason is None:
+        final_reason = "max_turns"
+
+    conv = Conversation(
         conversation_id=conversation_id,
         candidate_id=candidate_persona.candidate_id,
         role_id=role_persona.role_id,
         transcript=transcript,
-        termination_reason="max_turns",
-        walked_away_by=None,
-        walk_reason=None,
+        termination_reason=final_reason,
+        walked_away_by=final_walked_by,
+        walk_reason=final_walk_reason,
         turn_count=len(transcript),
         cost_usd=total_cost,
         started_at=started_at,
         ended_at=_now(),
     )
+    yield {"type": "complete", "conversation": conv.model_dump(mode="json")}
+
+
+def run_conversation(
+    candidate_persona: CandidatePersona,
+    role_persona: RolePersona,
+    max_turns: int = config.MAX_CONVERSATION_TURNS,
+) -> Conversation:
+    """Sync wrapper — drives the streaming generator to completion."""
+    final: Optional[Conversation] = None
+    for event in run_conversation_events(candidate_persona, role_persona, max_turns):
+        if event["type"] == "complete":
+            final = Conversation.model_validate(event["conversation"])
+    assert final is not None, "Conversation generator did not emit a 'complete' event"
+    return final

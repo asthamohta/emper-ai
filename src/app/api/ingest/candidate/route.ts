@@ -7,6 +7,7 @@ import { parseFile, inferDocType } from "@/lib/file-parser";
 import { embedBatch, serializeEmbedding } from "@/lib/embeddings";
 import { chunkText } from "@/lib/utils";
 import { extractCandidateContext } from "@/lib/claude";
+import { triggerPersonaRebuild } from "@/lib/persona-rebuild";
 import fs from "fs";
 import path from "path";
 
@@ -139,9 +140,19 @@ export async function POST(request: Request) {
     console.error("Failed to persist extracted projects:", err);
   }
 
+  // Fire the new Python-pipeline persona rebuild (debounced so multiple
+  // ingests in the same onboarding step coalesce). Fire-and-forget — the
+  // user gets to the dashboard without waiting on the LLM round-trip.
+  if (processedDocs.length > 0) {
+    triggerPersonaRebuild(candidate.id).catch((err) =>
+      console.error(`persona rebuild failed for ${candidate.id}:`, err)
+    );
+  }
+
   return NextResponse.json({
     ok: true,
     docsProcessed: processedDocs.length,
     extractedContext: extractedGoals,
+    personaRebuildScheduled: processedDocs.length > 0,
   });
 }

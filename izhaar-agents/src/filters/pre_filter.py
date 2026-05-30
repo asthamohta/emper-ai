@@ -71,34 +71,56 @@ def location_overlap(candidate_loc: str, role_loc: str) -> bool:
 
 # ---- Comp band matching -------------------------------------------------------
 
-_COMP_RE = re.compile(r"(\d+(?:\.\d+)?)\s*k?", re.IGNORECASE)
+# Capture an optional "$", a number (which may have decimals), and an optional
+# k/m suffix. We deal with commas by stripping them from the input before
+# matching, which is simpler than encoding them in the regex.
+_COMP_RE = re.compile(r"\$?(\d+(?:\.\d+)?)\s*([kKmM]?)")
 
 
 def _parse_comp_range(value: str) -> tuple[float, float] | None:
     """Extract a (min, max) tuple in USD from a free-form comp string.
 
-    Handles strings like:
-      "$220-280k base, prefer equity-weighted"
-      "200000-280000"
-      "260-340k"
+    Handles inputs like:
+      "$220-280k base, prefer equity-weighted"        → (220000, 280000)
+      "$200,000–$280,000 base; 0.15%–0.60% equity"    → (200000, 280000)
+      "200000-280000"                                  → (200000, 280000)
+      "260-340k"                                       → (260000, 340000)
+
+    The tricky cases are (a) comma-formatted numbers like $200,000 and (b)
+    free-form strings that ALSO contain equity percentages (0.15%) which must
+    NOT be confused with comp values. The heuristic: any number with a `k` or
+    `m` suffix is comp; bare numbers < 1000 are skipped unless the same input
+    has a `k` elsewhere (implies "first endpoint of a Nk-Mk range").
     """
     if not value:
         return None
-    matches = _COMP_RE.findall(value)
+    cleaned = value.replace(",", "").replace("–", "-").replace("—", "-")
+    matches = _COMP_RE.findall(cleaned)
     if not matches:
         return None
 
-    # Convert to floats. Treat any number under 1000 as "in thousands".
+    has_k = any(s.lower() == "k" for _, s in matches)
+
     nums: list[float] = []
-    for m in matches:
-        n = float(m)
-        if n < 1000:
+    for num_str, suffix in matches:
+        n = float(num_str)
+        s = suffix.lower()
+        if s == "k":
             n *= 1000
+        elif s == "m":
+            n *= 1_000_000
+        elif n < 1000:
+            # Bare small number with no suffix. If the input has a k somewhere
+            # AND the number looks comp-shaped (>= 10), assume implicit k
+            # (e.g. "220" in "$220-280k"). Otherwise treat as noise
+            # (equity percentages, year counts, etc.) and skip.
+            if has_k and n >= 10:
+                n *= 1000
+            else:
+                continue
         nums.append(n)
     if not nums:
         return None
-
-    # Use the first two numbers as the range; if only one, treat as both endpoints.
     if len(nums) == 1:
         return (nums[0], nums[0])
     return (min(nums[0], nums[1]), max(nums[0], nums[1]))
@@ -143,35 +165,38 @@ def _role_requirement_tag_set(role: RolePersona) -> set[str]:
 
 
 def pre_filter(candidate: CandidatePersona, role: RolePersona) -> tuple[bool, float]:
-    """Cheap filter before expensive LLM conversation. Returns (passed, score)."""
+    """Cheap filter before expensive LLM conversation. Returns (passed, score).
+
+    Only HARD constraints (explicit, parseable preferences) cause a knockout:
+      - location: candidate and role both state a location, with no overlap
+      - comp_band: candidate and role both state a range, with no overlap
+
+    Tag overlap is computed as an informational score (0.0 to 1.0) but is NOT
+    used as a knockout — LLM-generated tags vary in vocabulary, so any overlap
+    threshold is too noisy to gate on. The conversation is the real filter.
+    """
     candidate_prefs = {p.field: p.value for p in candidate.stated_preferences}
     role_prefs = {p.field: p.value for p in role.stated_preferences}
 
-    # Location compatibility
+    # Location compatibility (hard knockout if both sides specified and don't overlap).
     cand_loc = candidate_prefs.get("location", "")
     role_loc = role_prefs.get("location", "")
     if cand_loc and role_loc and not location_overlap(cand_loc, role_loc):
         return False, 0.0
 
-    # Comp compatibility
+    # Comp compatibility (hard knockout if both sides specified and don't overlap).
     cand_comp = candidate_prefs.get("comp_band", "")
     role_comp = role_prefs.get("comp_band", "")
     if cand_comp and role_comp and not comp_overlap(cand_comp, role_comp):
         return False, 0.0
 
-    # Tag overlap on requirements
+    # Tag overlap — informational only.
     candidate_tags = _candidate_tag_set(candidate)
     role_tags = _role_requirement_tag_set(role)
-
-    if not role_tags:
-        # If we can't compute, default to passing the filter — the conversation
-        # is the better signal anyway.
-        return True, 0.5
-
-    overlap = len(candidate_tags & role_tags)
-    score = overlap / max(len(role_tags), 1)
-
-    if score < config.MIN_SKILL_TAG_OVERLAP:
-        return False, score
+    if role_tags:
+        overlap = len(candidate_tags & role_tags)
+        score = overlap / max(len(role_tags), 1)
+    else:
+        score = 0.5
 
     return True, score

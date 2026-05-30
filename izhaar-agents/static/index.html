@@ -1,0 +1,812 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Izhaar · Agent Pipeline</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    pre, code, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace; }
+    .turn { white-space: pre-wrap; word-wrap: break-word; }
+    .verdict-badge { letter-spacing: 0.04em; }
+
+    .pulse { animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.4 } }
+
+    .typing-dot { animation: bounce 1.2s infinite ease-in-out both; }
+    .typing-dot:nth-child(2) { animation-delay: 0.15s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.30s; }
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.3; }
+      40% { transform: translateY(-4px); opacity: 1; }
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 24px;
+    }
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { order: -1; }
+    }
+    .sidebar { position: sticky; top: 16px; align-self: start; max-height: calc(100vh - 32px); overflow-y: auto; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+<header class="border-b border-slate-200 bg-white sticky top-0 z-10">
+  <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+    <div>
+      <h1 class="text-xl font-semibold">Izhaar · Agent Matching Pipeline</h1>
+      <p class="text-xs text-slate-500 mt-0.5">profile-builder → role-builder → adversarial conversation → judge</p>
+    </div>
+    <div class="flex items-center gap-4 text-xs">
+      <span id="server-status" class="text-slate-500">connecting…</span>
+      <a href="/docs" class="text-indigo-600 hover:underline">API docs ↗</a>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-6 py-6">
+  <div class="layout">
+
+    <!-- =============== MAIN COLUMN =============== -->
+    <div class="space-y-6">
+
+      <!-- Personas -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <div>
+            <h2 class="font-semibold">1. Personas</h2>
+            <p class="text-xs text-slate-500">One LLM call per persona. Rebuild after editing mock_data.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button id="seed-candidates-btn"
+                    class="bg-slate-700 hover:bg-slate-800 text-white text-xs rounded px-3 py-1.5 disabled:opacity-50">
+              Rebuild candidates
+            </button>
+            <button id="seed-roles-btn"
+                    class="bg-slate-700 hover:bg-slate-800 text-white text-xs rounded px-3 py-1.5 disabled:opacity-50">
+              Rebuild roles
+            </button>
+            <button id="seed-btn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm rounded px-3 py-1.5 disabled:opacity-50">
+              Build all personas
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Candidates</h3>
+            <ul id="candidate-list" class="text-sm space-y-1"></ul>
+          </div>
+          <div>
+            <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Roles</h3>
+            <ul id="role-list" class="text-sm space-y-1"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- Run a match -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h2 class="font-semibold">2. Run a match (live)</h2>
+          <span id="view-mode-badge" class="hidden text-xs px-2 py-1 rounded bg-slate-100 text-slate-600">viewing past match</span>
+        </div>
+
+        <div class="flex flex-wrap items-end gap-3">
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Candidate</label>
+            <select id="cand-select" class="border border-slate-300 rounded px-2 py-1.5 text-sm min-w-[14rem]"></select>
+          </div>
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Role</label>
+            <select id="role-select" class="border border-slate-300 rounded px-2 py-1.5 text-sm min-w-[18rem]"></select>
+          </div>
+          <button id="run-btn"
+                  class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm rounded px-4 py-1.5 disabled:opacity-50">
+            Run match
+          </button>
+          <button id="clear-btn"
+                  class="hidden text-xs text-slate-500 hover:text-slate-800 underline">
+            Clear view
+          </button>
+          <span id="run-status" class="text-xs text-slate-500"></span>
+        </div>
+
+        <!-- Pipeline stages -->
+        <div id="pipeline" class="mt-5 hidden">
+          <div class="flex items-center gap-2 text-xs">
+            <span id="stage-prefilter" class="px-2 py-1 rounded bg-slate-100 text-slate-500">⏳ pre-filter</span>
+            <span class="text-slate-300">→</span>
+            <span id="stage-conv" class="px-2 py-1 rounded bg-slate-100 text-slate-500">⏳ conversation</span>
+            <span class="text-slate-300">→</span>
+            <span id="stage-judge" class="px-2 py-1 rounded bg-slate-100 text-slate-500">⏳ judge</span>
+            <span class="ml-auto text-slate-500" id="stage-elapsed"></span>
+          </div>
+        </div>
+
+        <!-- Pre-filter result -->
+        <div id="prefilter-block" class="hidden mt-5 text-sm"></div>
+
+        <!-- Conversation transcript -->
+        <div id="conv-block" class="hidden mt-5">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold">Transcript</h3>
+            <span id="conv-meta" class="text-xs text-slate-500"></span>
+          </div>
+          <div id="transcript" class="space-y-3 text-sm"></div>
+        </div>
+
+        <!-- Verdict -->
+        <div id="verdict-block" class="hidden mt-6 border-t border-slate-200 pt-5"></div>
+      </section>
+
+      <!-- Persona Inspector -->
+      <section class="bg-white rounded-lg border border-slate-200 p-5">
+        <h2 class="font-semibold mb-3">3. Inspect a built persona</h2>
+        <div class="flex items-end gap-3">
+          <div>
+            <label class="block text-xs text-slate-500 mb-1">Persona</label>
+            <select id="inspect-select" class="border border-slate-300 rounded px-2 py-1.5 text-sm min-w-[20rem]"></select>
+          </div>
+          <button id="inspect-btn"
+                  class="bg-slate-700 hover:bg-slate-800 text-white text-sm rounded px-3 py-1.5">
+            Load
+          </button>
+        </div>
+        <div id="inspect-block" class="hidden mt-5"></div>
+      </section>
+
+    </div>
+
+    <!-- =============== SIDEBAR =============== -->
+    <aside class="sidebar">
+      <section class="bg-white rounded-lg border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-semibold text-sm">Match history</h2>
+          <button id="refresh-history-btn" class="text-xs text-slate-500 hover:text-slate-800 underline">refresh</button>
+        </div>
+        <div id="history-empty" class="text-xs text-slate-400 italic py-4 text-center">No matches yet — run one to see it here.</div>
+        <ul id="history-list" class="space-y-2"></ul>
+      </section>
+    </aside>
+
+  </div>
+</main>
+
+<script>
+const API = '/api/v1';
+
+const state = {
+  candidates: [],
+  roles: [],
+  matches: [],
+  currentEventSource: null,
+};
+
+// ---------- DOM helpers ----------
+function $(id) { return document.getElementById(id); }
+function el(tag, opts = {}, ...children) {
+  const e = document.createElement(tag);
+  if (opts.class) e.className = opts.class;
+  if (opts.text != null) e.textContent = opts.text;
+  if (opts.html != null) e.innerHTML = opts.html;
+  if (opts.attrs) for (const [k, v] of Object.entries(opts.attrs)) e.setAttribute(k, v);
+  if (opts.onClick) e.addEventListener('click', opts.onClick);
+  for (const c of children) if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  return e;
+}
+
+const VERDICT_COLORS = {
+  strong:   { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300', dot: 'bg-emerald-500' },
+  good:     { bg: 'bg-sky-100',     text: 'text-sky-800',     border: 'border-sky-300',     dot: 'bg-sky-500' },
+  marginal: { bg: 'bg-amber-100',   text: 'text-amber-900',   border: 'border-amber-300',   dot: 'bg-amber-500' },
+  no_match: { bg: 'bg-rose-100',    text: 'text-rose-800',    border: 'border-rose-300',    dot: 'bg-rose-500' },
+};
+
+// ---------- Boot ----------
+(async function boot() {
+  try {
+    const health = await fetch('/healthz').then(r => r.json());
+    $('server-status').textContent = '● ' + health.service;
+    $('server-status').className = 'text-emerald-600';
+  } catch (e) {
+    $('server-status').textContent = '● offline';
+    $('server-status').className = 'text-red-600';
+  }
+  await loadMockLists();
+  await refreshPersonaStatus();
+  await refreshHistory();
+  populateDropdowns();
+})();
+
+async function loadMockLists() {
+  const [cs, rs] = await Promise.all([
+    fetch(`${API}/mock/candidates`).then(r => r.json()),
+    fetch(`${API}/mock/roles`).then(r => r.json()),
+  ]);
+  state.candidates = cs.map(c => ({ ...c, built: false }));
+  state.roles = rs.map(r => ({ ...r, built: false }));
+}
+
+async function refreshPersonaStatus() {
+  const s = await fetch(`${API}/persona/status`).then(r => r.json());
+  const cb = new Set(s.candidates_built);
+  const rb = new Set(s.roles_built);
+  state.candidates.forEach(c => (c.built = cb.has(c.candidate_id)));
+  state.roles.forEach(r => (r.built = rb.has(r.role_id)));
+  renderPersonaLists();
+  populateInspectorDropdown();
+}
+
+function renderPersonaLists() {
+  const cul = $('candidate-list'); cul.innerHTML = '';
+  for (const c of state.candidates) {
+    const li = el('li', { class: 'flex items-center gap-2' });
+    li.appendChild(el('span', { class: c.built ? 'text-emerald-600' : 'text-slate-400', text: c.built ? '●' : '○' }));
+    li.appendChild(el('span', { class: 'mono text-xs text-slate-500', text: c.candidate_id }));
+    li.appendChild(el('span', { text: c.name }));
+    cul.appendChild(li);
+  }
+  const rul = $('role-list'); rul.innerHTML = '';
+  for (const r of state.roles) {
+    const li = el('li', { class: 'flex items-center gap-2' });
+    li.appendChild(el('span', { class: r.built ? 'text-emerald-600' : 'text-slate-400', text: r.built ? '●' : '○' }));
+    li.appendChild(el('span', { class: 'mono text-xs text-slate-500', text: r.role_id }));
+    li.appendChild(el('span', { text: `${r.title} · ${r.company}` }));
+    rul.appendChild(li);
+  }
+}
+
+function populateDropdowns() {
+  const cs = $('cand-select'); cs.innerHTML = '';
+  for (const c of state.candidates) {
+    cs.appendChild(el('option', { attrs: { value: c.candidate_id }, text: `${c.candidate_id} · ${c.name}` }));
+  }
+  const rs = $('role-select'); rs.innerHTML = '';
+  for (const r of state.roles) {
+    rs.appendChild(el('option', { attrs: { value: r.role_id }, text: `${r.role_id} · ${r.title} (${r.company})` }));
+  }
+}
+
+function populateInspectorDropdown() {
+  const sel = $('inspect-select'); sel.innerHTML = '';
+  const built = [
+    ...state.candidates.filter(c => c.built).map(c => ({ kind: 'candidate', id: c.candidate_id, label: `${c.candidate_id} · ${c.name}` })),
+    ...state.roles.filter(r => r.built).map(r => ({ kind: 'role', id: r.role_id, label: `${r.role_id} · ${r.title} (${r.company})` })),
+  ];
+  if (built.length === 0) {
+    sel.appendChild(el('option', { attrs: { value: '', disabled: 'true', selected: 'true' }, text: '(no personas built yet)' }));
+    return;
+  }
+  for (const b of built) {
+    sel.appendChild(el('option', { attrs: { value: `${b.kind}:${b.id}` }, text: `[${b.kind}] ${b.label}` }));
+  }
+}
+
+// ---------- Seed buttons ----------
+async function withButtonBusy(btnId, label, fn) {
+  const btn = $(btnId);
+  btn.disabled = true;
+  const orig = btn.textContent;
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    const s = Math.floor((Date.now() - t0) / 1000);
+    btn.textContent = `${label} ${s}s`;
+  }, 500);
+  try { await fn(); }
+  catch (e) { alert(label + ' failed: ' + e); }
+  finally {
+    clearInterval(tick);
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+$('seed-btn').addEventListener('click', () => withButtonBusy('seed-btn', 'Building…', async () => {
+  await fetch(`${API}/seed`, { method: 'POST' });
+  await refreshPersonaStatus();
+}));
+$('seed-roles-btn').addEventListener('click', () => withButtonBusy('seed-roles-btn', 'Rebuilding…', async () => {
+  await fetch(`${API}/seed/roles`, { method: 'POST' });
+  await refreshPersonaStatus();
+}));
+$('seed-candidates-btn').addEventListener('click', () => withButtonBusy('seed-candidates-btn', 'Rebuilding…', async () => {
+  await fetch(`${API}/seed/candidates`, { method: 'POST' });
+  await refreshPersonaStatus();
+}));
+
+// ---------- Run match (live SSE) ----------
+$('run-btn').addEventListener('click', runMatchStreaming);
+$('clear-btn').addEventListener('click', () => {
+  $('pipeline').classList.add('hidden');
+  $('prefilter-block').classList.add('hidden');
+  $('conv-block').classList.add('hidden');
+  $('verdict-block').classList.add('hidden');
+  $('transcript').innerHTML = '';
+  $('view-mode-badge').classList.add('hidden');
+  $('clear-btn').classList.add('hidden');
+});
+
+function resetMatchView() {
+  $('pipeline').classList.remove('hidden');
+  $('prefilter-block').classList.add('hidden');
+  $('conv-block').classList.add('hidden');
+  $('verdict-block').classList.add('hidden');
+  $('transcript').innerHTML = '';
+  $('view-mode-badge').classList.add('hidden');
+  $('clear-btn').classList.remove('hidden');
+  setStage('prefilter', 'active');
+  setStage('conv', 'pending');
+  setStage('judge', 'pending');
+}
+
+function setStage(name, status) {
+  const el = $('stage-' + name);
+  const labels = { prefilter: 'pre-filter', conv: 'conversation', judge: 'judge' };
+  if (status === 'active') {
+    el.className = 'px-2 py-1 rounded bg-indigo-100 text-indigo-700 pulse';
+    el.textContent = '⏳ ' + labels[name];
+  } else if (status === 'done') {
+    el.className = 'px-2 py-1 rounded bg-emerald-100 text-emerald-700';
+    el.textContent = '✓ ' + labels[name];
+  } else if (status === 'skipped') {
+    el.className = 'px-2 py-1 rounded bg-slate-100 text-slate-400 line-through';
+    el.textContent = labels[name];
+  } else if (status === 'failed') {
+    el.className = 'px-2 py-1 rounded bg-red-100 text-red-700';
+    el.textContent = '✗ ' + labels[name];
+  } else {
+    el.className = 'px-2 py-1 rounded bg-slate-100 text-slate-500';
+    el.textContent = '⏳ ' + labels[name];
+  }
+}
+
+function runMatchStreaming() {
+  const cid = $('cand-select').value;
+  const rid = $('role-select').value;
+  if (!cid || !rid) return;
+
+  if (state.currentEventSource) {
+    state.currentEventSource.close();
+    state.currentEventSource = null;
+  }
+
+  resetMatchView();
+  $('conv-block').classList.remove('hidden');
+  $('conv-meta').textContent = 'starting…';
+  $('run-btn').disabled = true;
+  $('run-status').textContent = '';
+
+  const t0 = Date.now();
+  const tick = setInterval(() => {
+    $('stage-elapsed').textContent = ((Date.now() - t0) / 1000).toFixed(1) + 's';
+  }, 100);
+
+  const url = `${API}/match/run-stream?candidate_id=${encodeURIComponent(cid)}&role_id=${encodeURIComponent(rid)}`;
+  const es = new EventSource(url);
+  state.currentEventSource = es;
+
+  const turnsByNumber = new Map();        // turn_number -> DOM node (so we can replace placeholders)
+  let conversationId = null;
+
+  function appendTurnPlaceholder(turn_number, speaker) {
+    const isCand = speaker === 'candidate';
+    const bubble = el('div', { class: 'flex ' + (isCand ? 'justify-end' : 'justify-start') });
+    const card = el('div', {
+      class: 'max-w-[80%] rounded-lg px-3 py-2 border ' +
+        (isCand ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200')
+    });
+    const head = el('div', { class: 'flex items-center gap-2 mb-1 text-[10px] uppercase tracking-wider font-semibold ' +
+        (isCand ? 'text-emerald-700' : 'text-indigo-700') });
+    head.appendChild(el('span', { text: `Turn ${turn_number}` }));
+    head.appendChild(el('span', { text: speaker }));
+    card.appendChild(head);
+    const dots = el('div', { class: 'flex items-center gap-1 py-1' });
+    for (let i = 0; i < 3; i++) dots.appendChild(el('span', { class: 'typing-dot inline-block w-1.5 h-1.5 rounded-full bg-slate-400' }));
+    card.appendChild(dots);
+    bubble.appendChild(card);
+    $('transcript').appendChild(bubble);
+    turnsByNumber.set(turn_number, { bubble, card, isCand });
+    bubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+
+  function replaceTurnContent(turn) {
+    const slot = turnsByNumber.get(turn.turn_number);
+    if (!slot) return;
+    const isCand = slot.isCand;
+    slot.card.innerHTML = '';
+    const head = el('div', { class: 'flex items-center gap-2 mb-1 text-[10px] uppercase tracking-wider font-semibold ' +
+        (isCand ? 'text-emerald-700' : 'text-indigo-700') });
+    head.appendChild(el('span', { text: `Turn ${turn.turn_number}` }));
+    head.appendChild(el('span', { text: turn.speaker }));
+    if (turn.sycophancy_score != null) {
+      const cls = turn.sycophancy_score > 0.6 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
+      head.appendChild(el('span', { class: 'ml-auto px-1 py-0.5 rounded normal-case tracking-normal ' + cls, text: `sycophancy ${turn.sycophancy_score.toFixed(2)}` }));
+    }
+    slot.card.appendChild(head);
+    slot.card.appendChild(el('div', { class: 'turn text-slate-800', text: turn.content }));
+    slot.bubble.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }
+
+  function annotateSycophancy(turn_number, score, suggested) {
+    const slot = turnsByNumber.get(turn_number);
+    if (!slot) return;
+    const head = slot.card.querySelector('div');
+    if (!head) return;
+    if (head.querySelector('.sycophancy-tag')) return;  // already annotated
+    const cls = score > 0.6 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
+    const tag = el('span', { class: 'sycophancy-tag ml-auto px-1 py-0.5 rounded normal-case tracking-normal ' + cls, text: `sycophancy ${score.toFixed(2)}` });
+    head.appendChild(tag);
+    if (suggested && score > 0.6) {
+      const banner = el('div', { class: 'mt-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-900 text-[11px]' });
+      banner.appendChild(el('span', { class: 'font-semibold mr-1', text: 'Injected to next turn:' }));
+      banner.appendChild(document.createTextNode(suggested));
+      slot.card.appendChild(banner);
+    }
+  }
+
+  es.addEventListener('prefilter', (e) => {
+    const data = JSON.parse(e.data);
+    $('prefilter-block').classList.remove('hidden');
+    $('prefilter-block').innerHTML = '';
+    if (!data.passed) {
+      setStage('prefilter', 'failed');
+      setStage('conv', 'skipped');
+      setStage('judge', 'skipped');
+      $('prefilter-block').appendChild(el('div', { class: 'p-3 rounded border border-red-200 bg-red-50 text-red-800' },
+        el('div', { class: 'font-semibold', text: '✗ Pre-filter blocked this match' }),
+        el('div', { class: 'text-xs mt-1', text: `Score ${data.score?.toFixed(2) ?? '0.00'}. The conversation will NOT run.` })));
+    } else {
+      setStage('prefilter', 'done');
+      setStage('conv', 'active');
+      $('prefilter-block').appendChild(el('div', { class: 'p-3 rounded border border-emerald-200 bg-emerald-50 text-emerald-800' },
+        el('div', { class: 'font-semibold', text: '✓ Pre-filter passed' }),
+        el('div', { class: 'text-xs mt-1', text: `Tag overlap score: ${data.score?.toFixed(2) ?? '0.00'}` })));
+    }
+  });
+
+  es.addEventListener('started', (e) => {
+    const data = JSON.parse(e.data);
+    conversationId = data.conversation_id;
+    $('conv-meta').textContent = `${data.conversation_id} · streaming…`;
+  });
+
+  es.addEventListener('turn_started', (e) => {
+    const data = JSON.parse(e.data);
+    appendTurnPlaceholder(data.turn_number, data.speaker);
+  });
+
+  es.addEventListener('turn', (e) => {
+    const data = JSON.parse(e.data);
+    replaceTurnContent(data.turn);
+  });
+
+  es.addEventListener('sycophancy', (e) => {
+    const data = JSON.parse(e.data);
+    annotateSycophancy(data.turn_number, data.score, data.suggested_injection);
+  });
+
+  es.addEventListener('terminated', (e) => {
+    const data = JSON.parse(e.data);
+    const meta = `terminated: ${data.reason}` + (data.walked_away_by ? ` (by ${data.walked_away_by})` : '');
+    $('conv-meta').textContent = meta;
+  });
+
+  es.addEventListener('conversation_complete', (e) => {
+    const data = JSON.parse(e.data);
+    setStage('conv', 'done');
+    setStage('judge', 'active');
+    $('conv-meta').textContent =
+      `${data.turn_count} turns · termination: ${data.termination_reason}` +
+      (data.walked_away_by ? ` (by ${data.walked_away_by})` : '') +
+      ` · $${data.cost_usd.toFixed(4)}`;
+  });
+
+  es.addEventListener('judging', () => {
+    setStage('judge', 'active');
+  });
+
+  es.addEventListener('verdict', (e) => {
+    const v = JSON.parse(e.data);
+    setStage('judge', 'done');
+    renderVerdict(v);
+  });
+
+  es.addEventListener('error', (e) => {
+    // SSE errors include connection close; also our custom 'error' event lands here if data present.
+    if (e.data) {
+      try {
+        const data = JSON.parse(e.data);
+        $('run-status').textContent = 'error: ' + (data.message || 'unknown');
+        $('run-status').className = 'text-xs text-red-600';
+      } catch {}
+    }
+  });
+
+  es.addEventListener('complete', async () => {
+    clearInterval(tick);
+    es.close();
+    state.currentEventSource = null;
+    $('run-btn').disabled = false;
+    await refreshHistory();
+  });
+}
+
+function renderVerdict(v) {
+  const block = $('verdict-block');
+  block.classList.remove('hidden');
+  block.innerHTML = '';
+
+  const c = VERDICT_COLORS[v.match_verdict] || VERDICT_COLORS.marginal;
+
+  const head = el('div', { class: 'flex items-center gap-3 mb-3 flex-wrap' });
+  head.appendChild(el('span', {
+    class: `verdict-badge inline-block uppercase font-bold px-3 py-1 rounded border ${c.bg} ${c.text} ${c.border}`,
+    text: v.match_verdict.replace('_', ' '),
+  }));
+  head.appendChild(el('span', { class: 'text-sm text-slate-600', text: `confidence ${(v.confidence * 100).toFixed(0)}%` }));
+  head.appendChild(el('span', {
+    class: 'ml-auto text-xs px-2 py-1 rounded ' + (v.surface_to_human ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'),
+    text: v.surface_to_human ? '✓ surface to human' : '— not surfaced',
+  }));
+  block.appendChild(head);
+
+  block.appendChild(el('p', { class: 'text-sm text-slate-700 mb-4 leading-relaxed', text: v.reasoning }));
+
+  const grid = el('div', { class: 'grid grid-cols-3 gap-4 text-sm' });
+  grid.appendChild(makeList('For match', v.evidence_for_match, 'text-emerald-700'));
+  grid.appendChild(makeList('Against match', v.evidence_against_match, 'text-rose-700'));
+  grid.appendChild(makeList('Unresolved', v.unresolved_concerns, 'text-amber-700'));
+  block.appendChild(grid);
+
+  if (v.bias_flags && v.bias_flags.length) {
+    const f = el('div', { class: 'mt-4 p-3 rounded border border-amber-200 bg-amber-50 text-amber-900 text-xs' });
+    f.appendChild(el('div', { class: 'font-semibold mb-1', text: 'Bias flags' }));
+    const ul = el('ul', { class: 'list-disc list-inside space-y-0.5' });
+    for (const x of v.bias_flags) ul.appendChild(el('li', { text: x }));
+    f.appendChild(ul);
+    block.appendChild(f);
+  }
+}
+
+function makeList(title, items, cls) {
+  const wrap = el('div', {});
+  wrap.appendChild(el('div', { class: `text-xs font-semibold uppercase tracking-wider mb-1 ${cls}`, text: title }));
+  if (!items || items.length === 0) {
+    wrap.appendChild(el('div', { class: 'text-xs text-slate-400 italic', text: '(none)' }));
+    return wrap;
+  }
+  const ul = el('ul', { class: 'list-disc list-inside text-xs text-slate-700 space-y-1' });
+  for (const it of items) ul.appendChild(el('li', { text: it }));
+  wrap.appendChild(ul);
+  return wrap;
+}
+
+// ---------- Match history sidebar ----------
+$('refresh-history-btn').addEventListener('click', refreshHistory);
+
+async function refreshHistory() {
+  try {
+    state.matches = await fetch(`${API}/matches?limit=50`).then(r => r.json());
+  } catch (e) {
+    state.matches = [];
+  }
+  renderHistory();
+}
+
+function renderHistory() {
+  const ul = $('history-list');
+  ul.innerHTML = '';
+  if (!state.matches.length) {
+    $('history-empty').classList.remove('hidden');
+    return;
+  }
+  $('history-empty').classList.add('hidden');
+  for (const m of state.matches) {
+    const c = VERDICT_COLORS[m.match_verdict] || VERDICT_COLORS.marginal;
+    const li = el('li', { class: 'rounded border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 cursor-pointer p-2 transition', onClick: () => loadMatch(m.conversation_id) });
+    const top = el('div', { class: 'flex items-center gap-2 mb-0.5' });
+    top.appendChild(el('span', { class: `inline-block w-2 h-2 rounded-full ${c.dot}` }));
+    top.appendChild(el('span', { class: `text-[10px] font-bold uppercase tracking-wider ${c.text}`, text: m.match_verdict.replace('_', ' ') }));
+    top.appendChild(el('span', { class: 'text-[10px] text-slate-500 ml-auto', text: `${m.turns}t · $${m.cost_usd.toFixed(2)}` }));
+    li.appendChild(top);
+    li.appendChild(el('div', { class: 'text-xs font-semibold text-slate-800 truncate', text: m.candidate_name }));
+    li.appendChild(el('div', { class: 'text-[11px] text-slate-500 truncate', text: `→ ${m.role_title} · ${m.company_name}` }));
+    const meta = el('div', { class: 'text-[10px] text-slate-400 mt-1' });
+    const reasonShort = m.termination_reason ? m.termination_reason.replace('_', ' ') : '';
+    meta.textContent = `${(m.confidence * 100).toFixed(0)}% · ${reasonShort}` + (m.surface_to_human ? ' · ★' : '');
+    li.appendChild(meta);
+    ul.appendChild(li);
+  }
+}
+
+async function loadMatch(conversation_id) {
+  if (state.currentEventSource) {
+    state.currentEventSource.close();
+    state.currentEventSource = null;
+  }
+  resetMatchView();
+  $('view-mode-badge').classList.remove('hidden');
+  $('clear-btn').classList.remove('hidden');
+  $('conv-block').classList.remove('hidden');
+  $('conv-meta').textContent = 'loading…';
+
+  setStage('prefilter', 'done');
+  setStage('conv', 'done');
+  setStage('judge', 'done');
+  $('prefilter-block').classList.add('hidden');
+
+  const [conv, verdict] = await Promise.all([
+    fetch(`${API}/conversation/${conversation_id}`).then(r => r.json()),
+    fetch(`${API}/verdict/conversation/${conversation_id}`).then(r => r.json()).catch(() => null),
+  ]);
+  renderFullTranscript(conv);
+  if (verdict) renderVerdict(verdict);
+}
+
+function renderFullTranscript(conv) {
+  $('conv-meta').textContent =
+    `${conv.turn_count} turns · termination: ${conv.termination_reason}` +
+    (conv.walked_away_by ? ` (by ${conv.walked_away_by})` : '') +
+    ` · $${conv.cost_usd.toFixed(4)}`;
+  const t = $('transcript');
+  t.innerHTML = '';
+  for (const turn of conv.transcript) {
+    const isCand = turn.speaker === 'candidate';
+    const bubble = el('div', { class: 'flex ' + (isCand ? 'justify-end' : 'justify-start') });
+    const card = el('div', {
+      class: 'max-w-[80%] rounded-lg px-3 py-2 border ' +
+        (isCand ? 'bg-emerald-50 border-emerald-200' : 'bg-indigo-50 border-indigo-200')
+    });
+    const head = el('div', { class: 'flex items-center gap-2 mb-1 text-[10px] uppercase tracking-wider font-semibold ' +
+        (isCand ? 'text-emerald-700' : 'text-indigo-700') });
+    head.appendChild(el('span', { text: `Turn ${turn.turn_number}` }));
+    head.appendChild(el('span', { text: turn.speaker }));
+    if (turn.sycophancy_score != null) {
+      const cls = turn.sycophancy_score > 0.6 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600';
+      head.appendChild(el('span', { class: 'ml-auto px-1 py-0.5 rounded normal-case tracking-normal ' + cls, text: `sycophancy ${turn.sycophancy_score.toFixed(2)}` }));
+    }
+    card.appendChild(head);
+    card.appendChild(el('div', { class: 'turn text-slate-800', text: turn.content }));
+    bubble.appendChild(card);
+    t.appendChild(bubble);
+  }
+}
+
+// ---------- Inspector ----------
+$('inspect-btn').addEventListener('click', async () => {
+  const v = $('inspect-select').value;
+  if (!v || !v.includes(':')) return;
+  const [kind, id] = v.split(':');
+  const persona = await fetch(`${API}/persona/${kind}/${id}`).then(r => r.json());
+  renderPersonaDetail(kind, persona);
+});
+
+function renderPersonaDetail(kind, p) {
+  const block = $('inspect-block');
+  block.classList.remove('hidden');
+  block.innerHTML = '';
+
+  const header = el('div', { class: 'mb-4' });
+  if (kind === 'candidate') {
+    header.appendChild(el('h3', { class: 'text-lg font-semibold', text: p.name }));
+    header.appendChild(el('div', { class: 'text-xs text-slate-500 mono', text: p.candidate_id }));
+  } else {
+    header.appendChild(el('h3', { class: 'text-lg font-semibold', text: `${p.role_title} · ${p.company_name}` }));
+    header.appendChild(el('div', { class: 'text-xs text-slate-500 mono', text: p.role_id }));
+  }
+  block.appendChild(header);
+
+  block.appendChild(el('div', { class: 'mb-4' },
+    el('div', { class: 'text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1', text: 'Summary' }),
+    el('p', { class: 'text-sm text-slate-700', text: p.summary }),
+  ));
+
+  const claims = el('div', { class: 'mb-4' });
+  claims.appendChild(el('div', { class: 'text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2', text: `Claims (${p.claims.length})` }));
+  for (const c of p.claims) {
+    const tierColors = {
+      verified: 'bg-emerald-100 text-emerald-800',
+      stated:   'bg-sky-100 text-sky-800',
+      inferred: 'bg-amber-100 text-amber-800',
+    };
+    const row = el('div', { class: 'border-l-2 border-slate-200 pl-3 py-1.5 mb-3' });
+    const meta = el('div', { class: 'flex flex-wrap items-center gap-2 text-[10px] font-semibold uppercase mb-0.5' });
+    meta.appendChild(el('span', { class: 'px-1.5 py-0.5 rounded ' + (tierColors[c.evidence_tier] || 'bg-slate-100'), text: c.evidence_tier }));
+    meta.appendChild(el('span', { class: 'text-slate-500', text: `conf ${c.confidence.toFixed(2)}` }));
+
+    const corr = (c.corroboration_count || (c.sources && c.sources.length) || 1);
+    if (corr > 1) {
+      meta.appendChild(el('span', { class: 'px-1.5 py-0.5 rounded bg-violet-100 text-violet-800', text: `×${corr} corroborated` }));
+    }
+    if (c.discrepancy_flag) {
+      meta.appendChild(el('span', { class: 'px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 normal-case', text: '⚠ discrepancy' }));
+    }
+    if (c.tags && c.tags.length) {
+      for (const t of c.tags) meta.appendChild(el('span', { class: 'mono text-slate-400 normal-case', text: '#' + t }));
+    }
+    row.appendChild(meta);
+    row.appendChild(el('div', { class: 'text-sm text-slate-800', text: c.claim_text }));
+
+    if (c.discrepancy_flag) {
+      row.appendChild(el('div', {
+        class: 'text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded p-2 mt-1 italic',
+        text: c.discrepancy_flag,
+      }));
+    }
+
+    if (c.sources && c.sources.length) {
+      const srcList = el('div', { class: 'mt-1.5 space-y-1' });
+      for (const s of c.sources) {
+        const srcRow = el('div', { class: 'text-xs text-slate-500' });
+        const typeColors = {
+          scraper_github:      'bg-slate-800 text-white',
+          scraper_linkedin:    'bg-blue-700 text-white',
+          scraper_portfolio:   'bg-purple-700 text-white',
+          scraper_resume:      'bg-slate-600 text-white',
+          scraper_huggingface: 'bg-yellow-500 text-slate-900',
+          scraper_form:        'bg-emerald-700 text-white',
+          ai_chat_history:     'bg-fuchsia-700 text-white',
+          role_jd:             'bg-indigo-700 text-white',
+          role_culture:        'bg-pink-700 text-white',
+          role_company:        'bg-slate-700 text-white',
+          role_team:           'bg-cyan-700 text-white',
+        };
+        const tag = el('span', { class: 'mono inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold mr-1 ' + (typeColors[s.source_type] || 'bg-slate-200 text-slate-700'), text: s.source_type });
+        srcRow.appendChild(tag);
+        if (s.source_url) {
+          srcRow.appendChild(el('span', { class: 'mono text-[10px]', text: ' ' + s.source_url }));
+        }
+        srcRow.appendChild(el('div', { class: 'text-xs italic text-slate-500 mt-0.5 ml-1', text: '"' + s.source_excerpt + '"' }));
+        srcList.appendChild(srcRow);
+      }
+      row.appendChild(srcList);
+    }
+
+    claims.appendChild(row);
+  }
+  block.appendChild(claims);
+
+  if (p.stated_preferences && p.stated_preferences.length) {
+    const prefs = el('div', { class: 'mb-4' });
+    prefs.appendChild(el('div', { class: 'text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2', text: 'Stated preferences' }));
+    const ul = el('ul', { class: 'text-sm space-y-1' });
+    for (const x of p.stated_preferences) {
+      ul.appendChild(el('li', {},
+        el('span', { class: 'mono text-xs text-slate-500 mr-2', text: x.field }),
+        el('span', { text: x.value }),
+      ));
+    }
+    prefs.appendChild(ul);
+    block.appendChild(prefs);
+  }
+
+  if (kind === 'candidate' && p.explicit_gaps && p.explicit_gaps.length) {
+    block.appendChild(listSection('Known gaps', p.explicit_gaps, 'text-amber-700'));
+  }
+  if (kind === 'role' && p.anti_fit_criteria && p.anti_fit_criteria.length) {
+    block.appendChild(listSection('Anti-fit criteria', p.anti_fit_criteria, 'text-rose-700'));
+  }
+
+  const det = el('details', { class: 'mt-4' });
+  det.appendChild(el('summary', { class: 'cursor-pointer text-xs font-semibold uppercase tracking-wider text-slate-500', text: 'Runtime system prompt' }));
+  det.appendChild(el('pre', { class: 'mt-2 p-3 bg-slate-900 text-slate-100 text-xs rounded overflow-x-auto whitespace-pre-wrap', text: p.system_prompt }));
+  block.appendChild(det);
+}
+
+function listSection(title, items, cls) {
+  const wrap = el('div', { class: 'mb-4' });
+  wrap.appendChild(el('div', { class: `text-xs font-semibold uppercase tracking-wider ${cls} mb-1`, text: title }));
+  const ul = el('ul', { class: 'list-disc list-inside text-sm text-slate-700 space-y-0.5' });
+  for (const it of items) ul.appendChild(el('li', { text: it }));
+  wrap.appendChild(ul);
+  return wrap;
+}
+</script>
+</body>
+</html>

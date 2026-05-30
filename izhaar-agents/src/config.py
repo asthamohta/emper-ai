@@ -21,3 +21,17 @@ SYCOPHANCY_INJECTION_THRESHOLD = 0.7
 MIN_SKILL_TAG_OVERLAP = 0.2
 
 DB_PATH = os.getenv("IZHAAR_DB_PATH", "izhaar.db")
+
+# Postgres connection string for the shared scraper DB (the Next.js side
+# writes candidate_documents / jobs / company_documents into this database).
+# Default matches the docker-compose service in the repo root.
+SCRAPER_DATABASE_URL = os.getenv(
+    "SCRAPER_DATABASE_URL",
+    "postgresql://emper:emper_secret@localhost:5432/emper",
+)
+
+# Optional shared secret used by the X-Agents-Key dependency on /api/v1/*.
+# When empty, the dependency is a no-op (dev mode — the standalone static
+# UI works without authentication). When set, all /api/v1/* requests must
+# include matching X-Agents-Key.
+AGENTS_API_KEY = os.getenv("AGENTS_API_KEY", "").strip()

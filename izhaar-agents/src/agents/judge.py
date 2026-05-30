@@ -26,10 +26,23 @@ def _format_transcript(conversation: Conversation) -> str:
     return "\n\n".join(lines)
 
 
+def _format_claim_sources(c) -> str:
+    parts = []
+    for s in c.sources:
+        u = f" {s.source_url}" if s.source_url else ""
+        parts.append(f"[{s.source_type}{u}] {s.source_excerpt}")
+    txt = " | ".join(parts) if parts else "(no sources)"
+    if c.corroboration_count > 1:
+        txt = f"×{c.corroboration_count} {txt}"
+    if c.discrepancy_flag:
+        txt += f"  ⚠ DISCREPANCY: {c.discrepancy_flag}"
+    return txt
+
+
 def _format_candidate_evidence(persona: CandidatePersona) -> str:
     claims_text = "\n".join(
-        f"- [{c.evidence_tier.upper()} conf={c.confidence:.2f}] {c.claim_text} "
-        f"(source: {c.source}; excerpt: {c.evidence_excerpt})"
+        f"- [{c.evidence_tier.upper()} conf={c.confidence:.2f}] {c.claim_text}\n"
+        f"  {_format_claim_sources(c)}"
         for c in persona.claims
     )
     prefs_text = "\n".join(
@@ -47,8 +60,8 @@ def _format_candidate_evidence(persona: CandidatePersona) -> str:
 
 def _format_role_evidence(persona: RolePersona) -> str:
     claims_text = "\n".join(
-        f"- [{c.evidence_tier.upper()} conf={c.confidence:.2f} tags={c.tags}] {c.claim_text} "
-        f"(source: {c.source}; excerpt: {c.evidence_excerpt})"
+        f"- [{c.evidence_tier.upper()} conf={c.confidence:.2f} tags={c.tags}] {c.claim_text}\n"
+        f"  {_format_claim_sources(c)}"
         for c in persona.claims
     )
     prefs_text = "\n".join(

@@ -11,9 +11,22 @@ from datetime import datetime, timezone
 
 from src import config
 from src.agents._client import call_claude, parse_json_strict
-from src.models.persona import Claim, RolePersona, StatedPreference
+from src.models.persona import Claim, RolePersona, SourceAttribution, StatedPreference
 from src.prompts.role_builder_prompt import ROLE_BUILDER_SYSTEM_PROMPT
 from src.prompts.role_persona_prompt import build_role_persona_system_prompt
+
+
+def _map_role_source(source_str: str) -> str:
+    s = (source_str or "").lower()
+    if "jd" in s or "job description" in s or "description" in s:
+        return "role_jd"
+    if "culture" in s:
+        return "role_culture"
+    if "team" in s or "founder" in s or "team_lead" in s:
+        return "role_team"
+    if "company" in s or "website" in s or "mission" in s:
+        return "role_company"
+    return "role_jd"  # safe default
 
 
 def build_role_persona(role_id: str, role_data: dict) -> RolePersona:
@@ -41,16 +54,25 @@ def build_role_persona(role_id: str, role_data: dict) -> RolePersona:
 
     claims: list[Claim] = []
     for i, c in enumerate(parsed.get("claims", [])):
+        # The role-builder prompt still emits a single `source` + `evidence_excerpt`
+        # per claim. Wrap that into the new SourceAttribution list shape.
+        source_str = c.get("source", "")
+        attribution = SourceAttribution(
+            source_type=_map_role_source(source_str),  # type: ignore[arg-type]
+            source_excerpt=c.get("evidence_excerpt", ""),
+            source_url=source_str if source_str.startswith("http") else None,
+        )
         claims.append(
             Claim(
                 claim_id=f"{role_id}_claim_{i:04d}",
                 subject_id=role_id,
                 claim_text=c["claim_text"],
                 evidence_tier=c["evidence_tier"],
-                source=c["source"],
-                evidence_excerpt=c["evidence_excerpt"],
+                sources=[attribution],
                 confidence=float(c["confidence"]),
                 tags=list(c.get("tags", [])),
+                corroboration_count=1,
+                discrepancy_flag=None,
             )
         )
 

@@ -15,7 +15,8 @@ const schema = z.object({
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { email, password, role, name } = schema.parse(body);
+    const { email: rawEmail, password, role, name } = schema.parse(body);
+    const email = rawEmail.toLowerCase();
 
     const existing = await db.query.users.findFirst({
       where: eq(users.email, email),

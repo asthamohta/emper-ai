@@ -1,28 +1,15 @@
-import OpenAI from "openai";
-
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  return _openai;
-}
+// Embeddings are stored for future vector search but not actively used —
+// all matching runs through the Python pipeline (izhaar-agents).
+// Returning zero vectors so ingest routes work without an embedding provider.
 
 export const EMBEDDING_DIM = 1536;
 
-export async function embed(text: string): Promise<number[]> {
-  const response = await getOpenAI().embeddings.create({
-    model: "text-embedding-3-small",
-    input: text.slice(0, 8000), // token safety limit
-  });
-  return response.data[0].embedding;
+export async function embed(_text: string): Promise<number[]> {
+  return new Array(EMBEDDING_DIM).fill(0);
 }
 
 export async function embedBatch(texts: string[]): Promise<number[][]> {
-  if (texts.length === 0) return [];
-  const response = await getOpenAI().embeddings.create({
-    model: "text-embedding-3-small",
-    input: texts.map((t) => t.slice(0, 8000)),
-  });
-  return response.data.map((d) => d.embedding);
+  return texts.map(() => new Array(EMBEDDING_DIM).fill(0));
 }
 
 export function cosineSimilarity(a: number[], b: number[]): number {
@@ -34,7 +21,8 @@ export function cosineSimilarity(a: number[], b: number[]): number {
     normA += a[i] * a[i];
     normB += b[i] * b[i];
   }
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  const denom = Math.sqrt(normA) * Math.sqrt(normB);
+  return denom === 0 ? 0 : dot / denom;
 }
 
 export function serializeEmbedding(vec: number[]): string {

@@ -91,6 +91,7 @@ export type EmperData = {
   gapQuestions: number;
   arc: { body: string; sources: string[] };
   howIWork: { body: string; sources: string[] };
+  behavioralProfile: { body: string; sources: string[] } | null;
   shipped: EmperShipped[];
   shippedSources: string[];
   optimizingFor: { body: string; sources: string[] };
@@ -118,6 +119,8 @@ export const MOCK: EmperData = {
   arc: { body: "", sources: [] },
 
   howIWork: { body: "", sources: [] },
+
+  behavioralProfile: null,
 
   shipped: [],
   shippedSources: [],

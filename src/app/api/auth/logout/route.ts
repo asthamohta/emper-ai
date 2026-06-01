@@ -5,3 +5,9 @@ export async function POST() {
   response.cookies.delete("emper_token");
   return response;
 }
+
+export async function GET() {
+  const response = NextResponse.redirect("http://localhost:3000/login");
+  response.cookies.delete("emper_token");
+  return response;
+}

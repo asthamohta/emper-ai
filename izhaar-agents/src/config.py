@@ -8,7 +8,7 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 # for failing loudly when a key is actually needed. Importing the package
 # (e.g. for unit tests that mock out call_claude) should not require a key.
 
-PROFILE_MODEL = "claude-sonnet-4-6"
+PROFILE_MODEL = "claude-haiku-4-5-20251001"
 ROLE_MODEL = "claude-sonnet-4-6"
 CONVERSATION_MODEL = "claude-sonnet-4-6"
 JUDGE_MODEL = "claude-sonnet-4-6"

@@ -37,6 +37,11 @@ export function buildEmperData({
   const howIWorkBody = buildHowIWork(g);
   const optimizingBody = g.values || g.intellectual_interests || "";
 
+  // Behavioral profile — only populated when the candidate has submitted a Claude
+  // (or other AI) chat history. Stored under chat_* keys so it never gets
+  // overwritten by resume/GitHub ingestion.
+  const behavioralProfile = buildBehavioralProfile(g);
+
   // Use extracted projects array if available, fall back to strengths heuristic
   const shipped = buildShipped(g);
 
@@ -55,9 +60,10 @@ export function buildEmperData({
       initials,
       email,
     },
-    arc: { body: arcBody, sources: arcBody ? [sourceLabel, "Kira chat"] : [] },
+    arc: { body: arcBody, sources: arcBody ? [sourceLabel] : [] },
     howIWork: { body: howIWorkBody, sources: howIWorkBody ? [sourceLabel] : [] },
-    optimizingFor: { body: optimizingBody, sources: optimizingBody ? ["Kira chat", sourceLabel] : [] },
+    behavioralProfile,
+    optimizingFor: { body: optimizingBody, sources: optimizingBody ? [sourceLabel] : [] },
     shipped,
     shippedSources: shipped.length > 0 ? [sourceLabel] : [],
     gapQuestions: countGaps(g),
@@ -69,6 +75,27 @@ function buildRoleLabel(g: Record<string, any>): string {
   if (g.experience_level) parts.push(g.experience_level);
   if (g.industries) parts.push(g.industries);
   return parts.join(" · ");
+}
+
+/**
+ * Build a behavioral profile section from chat_* fields (set by the chat-history
+ * ingest route). Returns null if the candidate hasn't submitted a chat history yet.
+ */
+function buildBehavioralProfile(
+  g: Record<string, any>
+): { body: string; sources: string[] } | null {
+  if (!g._chatHistoryProcessed) return null;
+
+  const parts: string[] = [];
+  if (g.chat_working_style) parts.push(g.chat_working_style);
+  if (g.chat_communication_style) parts.push(g.chat_communication_style);
+  if (g.chat_career_trajectory) parts.push(g.chat_career_trajectory);
+  if (g.chat_values) parts.push(g.chat_values);
+  if (g.chat_intellectual_interests) parts.push(g.chat_intellectual_interests);
+  if (g.chat_summary && parts.length === 0) parts.push(g.chat_summary);
+
+  if (parts.length === 0) return null;
+  return { body: parts.join("\n\n"), sources: ["Claude chat history"] };
 }
 
 function buildHowIWork(g: Record<string, any>): string {

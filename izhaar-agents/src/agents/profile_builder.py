@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from src import config
-from src.agents._client import call_claude, parse_json_strict
+from src.agents._client import BatchRequest, call_claude, call_claude_batch, parse_json_strict
 from src.models.persona import (
     CandidatePersona,
     Claim,
@@ -96,55 +96,47 @@ def _claim_from_parsed(
 # ----- Pass 1: scraper extraction --------------------------------------------
 
 
-def _extract_from_scraper(
-    candidate_id: str, scraper_data: dict
-) -> tuple[list[Claim], list[StatedPreference], list[str], str]:
-    """Run the scraper-extraction LLM call. Returns (claims, prefs, gaps, summary)."""
+def _build_scraper_request(candidate_id: str, scraper_data: dict) -> BatchRequest:
     user_message = (
         "Build a grounded candidate persona from the following SCRAPED data. "
         "Follow the schema and rules in the system prompt exactly.\n\n"
         f"SCRAPER DATA:\n{json.dumps(scraper_data, indent=2)}"
     )
-    result = call_claude(
+    return BatchRequest(
+        custom_id=f"scraper-{candidate_id}",
         system=PROFILE_BUILDER_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_message}],
         model=config.PROFILE_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         temperature=0.3,
-        label=f"profile_builder:scraper:{candidate_id}",
     )
-    parsed = parse_json_strict(result.text, context=f"profile_builder:scraper:{candidate_id}")
 
-    claims: list[Claim] = []
-    for i, c in enumerate(parsed.get("claims", [])):
-        claims.append(_claim_from_parsed(candidate_id, i, c, id_prefix="scraper"))
 
+def _parse_scraper_result(
+    candidate_id: str, result_text: str
+) -> tuple[list[Claim], list[StatedPreference], list[str], str]:
+    parsed = parse_json_strict(result_text, context=f"profile_builder:scraper:{candidate_id}")
+    claims = [
+        _claim_from_parsed(candidate_id, i, c, id_prefix="scraper")
+        for i, c in enumerate(parsed.get("claims", []))
+    ]
     prefs = [
         StatedPreference(field=p["field"], value=p["value"], source=p["source"])
         for p in parsed.get("stated_preferences", [])
     ]
-    gaps = list(parsed.get("explicit_gaps", []))
-    summary = parsed.get("summary", "")
-    return claims, prefs, gaps, summary
+    return claims, prefs, list(parsed.get("explicit_gaps", [])), parsed.get("summary", "")
 
 
 # ----- Pass 2: chat-history extraction ---------------------------------------
 
 
-def _extract_from_chat_history(
-    candidate_id: str, chat_history: dict
-) -> tuple[list[Claim], str]:
-    """Run the chat-history extraction LLM call. Returns (claims, summary).
-
-    chat_history shape: {"provider", "submitted_at", "raw_output"}.
-    """
+def _build_chat_request(candidate_id: str, chat_history: dict) -> BatchRequest | None:
     raw = chat_history.get("raw_output", "")
-    provider = chat_history.get("provider", "unknown")
-    submitted = chat_history.get("submitted_at", "")
     if not raw.strip():
         logger.info("chat_history.raw_output is empty for %s — skipping pass 2", candidate_id)
-        return [], ""
-
+        return None
+    provider = chat_history.get("provider", "unknown")
+    submitted = chat_history.get("submitted_at", "")
     user_message = (
         f"AI assistant: {provider}\n"
         f"Submitted at: {submitted}\n\n"
@@ -155,22 +147,22 @@ def _extract_from_chat_history(
         f"{raw}\n"
         "----- END PASTED PROFILE -----"
     )
-    result = call_claude(
+    return BatchRequest(
+        custom_id=f"chat-{candidate_id}",
         system=AI_CHAT_HISTORY_EXTRACTION_PROMPT,
         messages=[{"role": "user", "content": user_message}],
         model=config.PROFILE_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
         temperature=0.3,
-        label=f"profile_builder:chat:{candidate_id}",
     )
-    parsed = parse_json_strict(result.text, context=f"profile_builder:chat:{candidate_id}")
 
+
+def _parse_chat_result(candidate_id: str, result_text: str) -> tuple[list[Claim], str]:
+    parsed = parse_json_strict(result_text, context=f"profile_builder:chat:{candidate_id}")
     claims: list[Claim] = []
     for i, c in enumerate(parsed.get("claims", [])):
-        # Chat-history claims always have source_type = ai_chat_history.
         c.setdefault("source_type", "ai_chat_history")
         claims.append(_claim_from_parsed(candidate_id, i, c, id_prefix="chat"))
-
     return claims, parsed.get("summary", "")
 
 
@@ -204,7 +196,7 @@ def _merge_claims(
         system=CLAIM_MERGE_PROMPT,
         messages=[{"role": "user", "content": user_message}],
         model=config.PROFILE_MODEL,
-        max_tokens=6144,
+        max_tokens=8192,
         temperature=0.2,
         label=f"profile_builder:merge:{candidate_id}",
     )
@@ -237,12 +229,27 @@ def build_candidate_persona(candidate_id: str, input_dict: dict) -> CandidatePer
     scraper_data = sources_in.get("scraper") if isinstance(sources_in, dict) else None
     chat_data = sources_in.get("ai_chat_history") if isinstance(sources_in, dict) else None
 
+    # Build batch requests for whichever sources are present (passes 1 & 2 are independent).
+    batch_requests: list[BatchRequest] = []
     if scraper_data:
-        scraper_claims, stated_prefs, scraper_gaps, scraper_summary = _extract_from_scraper(
-            candidate_id, scraper_data
+        batch_requests.append(_build_scraper_request(candidate_id, scraper_data))
+    chat_req = _build_chat_request(candidate_id, chat_data) if chat_data else None
+    if chat_req:
+        batch_requests.append(chat_req)
+
+    batch_results = call_claude_batch(
+        batch_requests,
+        label=f"profile_builder:{candidate_id}",
+    )
+
+    if scraper_data and f"scraper-{candidate_id}" in batch_results:
+        scraper_claims, stated_prefs, scraper_gaps, scraper_summary = _parse_scraper_result(
+            candidate_id, batch_results[f"scraper-{candidate_id}"].text
         )
-    if chat_data:
-        chat_history_claims, chat_summary = _extract_from_chat_history(candidate_id, chat_data)
+    if chat_req and f"chat-{candidate_id}" in batch_results:
+        chat_history_claims, chat_summary = _parse_chat_result(
+            candidate_id, batch_results[f"chat-{candidate_id}"].text
+        )
 
     # Merge or pass through.
     if scraper_claims and chat_history_claims:

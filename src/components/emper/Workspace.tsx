@@ -27,6 +27,66 @@ export function Workspace({ initial }: WorkspaceProps) {
   const [kiraOpen, setKiraOpen] = React.useState(false);
   const [kiraGap, setKiraGap] = React.useState(false);
   const [data, setData] = React.useState<EmperData>(initial.data);
+  const [refreshing, setRefreshing] = React.useState(false);
+
+  const fetchLatest = React.useCallback(async () => {
+    if (!initial.liveBackend) return;
+    try {
+      const [profileRes, docsRes, matchesRes] = await Promise.allSettled([
+        fetch("/api/candidate/profile", { cache: "no-store" }),
+        fetch("/api/candidate/documents", { cache: "no-store" }),
+        fetch("/api/matches", { cache: "no-store" }),
+      ]);
+
+      const patch: Partial<EmperData> = {};
+
+      if (profileRes.status === "fulfilled" && profileRes.value.ok) {
+        const json = await profileRes.value.json();
+        if (json.candidate) {
+          const freshData = buildEmperData({
+            email: json.user.email,
+            name: json.candidate.name,
+            goals: json.candidate.goals ?? {},
+            docCount: json.docCount ?? 0,
+          });
+          patch.user = freshData.user;
+          patch.arc = freshData.arc;
+          patch.howIWork = freshData.howIWork;
+          patch.behavioralProfile = freshData.behavioralProfile;
+          patch.shipped = freshData.shipped;
+          patch.shippedSources = freshData.shippedSources;
+          patch.optimizingFor = freshData.optimizingFor;
+          patch.gapQuestions = freshData.gapQuestions;
+        }
+      }
+
+      if (docsRes.status === "fulfilled" && docsRes.value.ok) {
+        const json = await docsRes.value.json();
+        if (Array.isArray(json.documents) && json.documents.length > 0) {
+          patch.documents = json.documents as EmperDocument[];
+        }
+      }
+
+      if (matchesRes.status === "fulfilled" && matchesRes.value.ok) {
+        const json = await matchesRes.value.json();
+        if (Array.isArray(json.matches) && json.matches.length > 0) {
+          patch.intros = matchesToIntros(json.matches);
+        }
+      }
+
+      if (Object.keys(patch).length > 0) {
+        setData((d) => ({ ...d, ...patch }));
+      }
+    } catch {
+      // best-effort
+    }
+  }, [initial.liveBackend]);
+
+  const handleRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchLatest();
+    setRefreshing(false);
+  }, [fetchLatest]);
 
   // For logged-in candidates: fetch live profile + documents + matches on mount
   // so the UI always reflects the latest DB state, not just the SSR snapshot.
@@ -127,7 +187,7 @@ export function Workspace({ initial }: WorkspaceProps) {
       />
       <main className="flex-1 min-w-0">
         {page === "self" && (
-          <SelfPage data={data} onTalkToKira={() => openKira(true)} />
+          <SelfPage data={data} onTalkToKira={() => openKira(true)} onRefresh={handleRefresh} refreshing={refreshing} />
         )}
         {page === "intros" && <IntrosPage initialIntros={data.intros} />}
         {page === "tracker" && (

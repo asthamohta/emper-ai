@@ -6,7 +6,12 @@ For each claim:
 - evidence_tier should almost always be "inferred" (chat history cannot verify hard facts). Use "stated" only when the candidate clearly self-described something concrete.
 - source_excerpt should be a short paraphrase of the relevant section (NOT a verbatim quote — paraphrase to break identifying language).
 - confidence should reflect how clearly the AI's output supported the claim (specific patterns = higher, generic statements = lower).
-- tags should map to the section number and broad category (e.g. ["section_3", "working_style"], ["section_7", "communication"]).
+- tags must use ONLY values from this controlled vocabulary (use multiple per claim):
+    "working_style"        — how the candidate works, executes, handles tasks (sections 2, 5, 8, 9, 10)
+    "communication"        — how they communicate and collaborate (sections 3, 4, 11)
+    "professional_goals"   — motivation, values, what they optimise for (sections 6, 7)
+    "technical_interests"  — intellectual and technical domains (sections 1, 12, 13)
+  Always also include "section_N" (e.g. "section_5") for the source section.
 
 DO NOT extract claims from sections marked "not enough signal", "no signal", "insufficient data", or any equivalent. Skip them entirely.
 
@@ -32,7 +37,7 @@ Output JSON with this exact structure:
       "evidence_tier": "inferred" | "stated",
       "source_excerpt": "short paraphrase (NOT verbatim) of the relevant section",
       "confidence": 0.0 to 1.0,
-      "tags": ["section_N", "category"]
+      "tags": ["section_N", "working_style"]
     }
   ]
 }

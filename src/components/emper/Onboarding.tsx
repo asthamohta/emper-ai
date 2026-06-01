@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Icon } from "./Icon";
+import { FetchWorkingStyleModal } from "./FetchWorkingStyleModal";
 
 interface OnboardingProps {
   onExit: () => void;
@@ -97,7 +98,7 @@ type StagedFile = {
   name: string;
   size: string;
   id: string;
-  sourceType?: "github" | "website" | "paper";
+  sourceType?: "github" | "website" | "paper" | "ai";
   url?: string;
 };
 
@@ -107,6 +108,7 @@ function DumpStep({ onNext }: { onNext: (items: StagedFile[]) => void }) {
   const [github, setGithub] = React.useState("");
   const [website, setWebsite] = React.useState("");
   const [paper, setPaper] = React.useState("");
+  const [fetchModalOpen, setFetchModalOpen] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   function formatSize(bytes: number) {
@@ -281,6 +283,31 @@ function DumpStep({ onNext }: { onNext: (items: StagedFile[]) => void }) {
         </div>
       </div>
 
+      <div className="mt-4 flex items-center gap-3 px-4 py-3 rounded-md border border-hair bg-elev/40">
+        <Icon name="spark" size={14} className="text-accent" />
+        <span className="flex-1 font-mono text-[12px] text-dim">
+          fetch behavioral profile from Claude
+        </span>
+        <button
+          onClick={() => setFetchModalOpen(true)}
+          className="btn btn-accent"
+        >
+          fetch
+        </button>
+      </div>
+
+      <FetchWorkingStyleModal
+        open={fetchModalOpen}
+        onClose={() => setFetchModalOpen(false)}
+        onSaved={() => {
+          setStaged((s) => [
+            ...s.filter((x) => x.sourceType !== "ai"),
+            { name: "behavioral profile · Claude", size: "ai", id: "ai-profile", sourceType: "ai" },
+          ]);
+          setFetchModalOpen(false);
+        }}
+      />
+
       {staged.length > 0 && (
         <div className="mt-8">
           <div className="font-mono text-[10.5px] text-faint uppercase tracking-wider mb-2">
@@ -292,7 +319,7 @@ function DumpStep({ onNext }: { onNext: (items: StagedFile[]) => void }) {
                 key={f.id}
                 className="flex items-center gap-3 px-3 py-2 rounded-md border border-hair-soft bg-elev/30"
               >
-                <Icon name={f.sourceType === "github" ? "github" : f.sourceType === "website" ? "link" : "doc"} size={13} className="text-dim" />
+                <Icon name={f.sourceType === "github" ? "github" : f.sourceType === "website" ? "link" : f.sourceType === "ai" ? "spark" : "doc"} size={13} className={f.sourceType === "ai" ? "text-accent" : "text-dim"} />
                 <span className="text-[12.5px] font-mono flex-1 truncate">
                   {f.name}
                 </span>
@@ -399,7 +426,7 @@ function ProcessingStep({
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(
                   s.sourceType === "github"
-                    ? { username: s.url }
+                    ? { githubUsername: s.url }
                     : { url: s.url, sourceType: s.sourceType }
                 ),
               });

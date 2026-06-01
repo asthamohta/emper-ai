@@ -114,10 +114,6 @@ async function runRebuild(candidateId: string): Promise<void> {
 /**
  * Map candidate_documents rows by doc_type into the dict shape Python
  * expects (sources.scraper.{resume,github,linkedin,...} + sources.ai_chat_history).
- *
- * Each scraper source becomes `{ filename, content_excerpt }` so the LLM gets
- * structured-ish input. The full content is included up to a per-source cap
- * to keep token usage bounded.
  */
 function bundleDocumentsAsSources(
   docs: Array<{ filename: string; content: string; docType: string; createdAt: Date }>
@@ -125,24 +121,26 @@ function bundleDocumentsAsSources(
   const sources: CandidateSources = {};
   const scraper: Record<string, unknown> = {};
 
-  // The scraper-side sources we know about. Map doc_type → key in the dict
-  // Python's profile_builder sees.
   const scraperMapping: Record<string, string> = {
     resume: "resume",
     linkedin: "linkedin",
     github: "github",
     website: "website",
     portfolio: "portfolio",
-    paper: "portfolio",       // papers fold into portfolio for the agent's purposes
-    sop: "resume",            // SOP behaves like resume content
+    paper: "portfolio",
+    sop: "resume",
     employee_cv: "resume",
   };
 
-  for (const d of docs) {
+  // Sort newest-first so the first doc we see per key is always the latest.
+  const sorted = [...docs].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  for (const d of sorted) {
     if (d.docType === "ai_chat_history") {
-      // The most recent chat history wins if multiple were uploaded.
-      const prior = sources.ai_chat_history;
-      if (!prior || d.createdAt > new Date(prior.submitted_at)) {
+      // Most recent chat history only.
+      if (!sources.ai_chat_history) {
         sources.ai_chat_history = {
           provider: providerFromFilename(d.filename),
           submitted_at: d.createdAt.toISOString(),
@@ -153,23 +151,12 @@ function bundleDocumentsAsSources(
     }
 
     const key = scraperMapping[d.docType];
-    if (!key) continue;  // unknown doc_type, skip silently
+    if (!key) continue;
 
-    // Concatenate when multiple docs share a key (e.g. two resume files).
-    const existing = (scraper[key] as Record<string, unknown>) ?? null;
-    if (existing) {
-      scraper[key] = {
-        ...existing,
-        additional_content: [
-          ...(((existing.additional_content as string[]) ?? [])),
-          d.content,
-        ],
-      };
-    } else {
-      scraper[key] = {
-        filename: d.filename,
-        content: d.content,
-      };
+    // Most recent doc per scraper key only — repeated uploads should not
+    // pile up and blow the token budget.
+    if (!scraper[key]) {
+      scraper[key] = { filename: d.filename, content: d.content };
     }
   }
 

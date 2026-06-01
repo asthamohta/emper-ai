@@ -20,6 +20,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { candidates, candidateDocuments } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { extractCandidateContext } from "@/lib/claude";
 import { triggerPersonaRebuild } from "@/lib/persona-rebuild";
 
 const MIN_LEN = 500;
@@ -93,7 +94,31 @@ export async function POST(request: Request) {
     console.error("chat-history audit write failed:", err);
   }
 
-  // 3. Fire persona rebuild (fire-and-forget — caller doesn't wait).
+  // 3. Quick synchronous extraction — store under chat_* keys so resume/GitHub
+  //    ingestion never overwrites these with document-derived data.
+  try {
+    const extracted = await extractCandidateContext([
+      { content: rawText, docType: "ai_chat_history" },
+    ]);
+    if (Object.keys(extracted).length > 0) {
+      const existing = (candidate.goals as Record<string, unknown>) ?? {};
+      // Prefix every extracted field with "chat_" so it has its own namespace
+      // and is never clobbered by a subsequent resume or GitHub ingest.
+      const chatPrefixed: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(extracted)) {
+        chatPrefixed[`chat_${k}`] = v;
+      }
+      await db
+        .update(candidates)
+        .set({ goals: { ...existing, ...chatPrefixed, _chatHistoryProcessed: true } })
+        .where(eq(candidates.id, candidate.id));
+    }
+  } catch (err) {
+    // Non-fatal: the batch rebuild below will still run.
+    console.error("chat-history quick extraction failed:", err);
+  }
+
+  // 4. Fire deeper Python batch persona rebuild (fire-and-forget).
   triggerPersonaRebuild(candidate.id).catch((err) =>
     console.error(`persona rebuild failed for ${candidate.id}:`, err)
   );

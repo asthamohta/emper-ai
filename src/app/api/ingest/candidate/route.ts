@@ -84,10 +84,12 @@ export async function POST(request: Request) {
     }
   }
 
-  // Update candidate with extracted context
+  // Merge extracted context into existing goals — preserves chat-history fields
+  // written by /api/ingest/chat-history before this call.
+  const existingGoals = (candidate.goals as Record<string, unknown>) ?? {};
   await db
     .update(candidates)
-    .set({ goals: { ...extractedGoals, _docsProcessed: String(processedDocs.length) } })
+    .set({ goals: { ...existingGoals, ...extractedGoals, _docsProcessed: String(processedDocs.length) } })
     .where(eq(candidates.id, candidate.id));
 
   // If projects were extracted, persist them as a markdown document and index it

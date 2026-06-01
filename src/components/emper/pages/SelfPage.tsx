@@ -3,17 +3,50 @@
 import * as React from "react";
 import { Icon } from "../Icon";
 import { ChatHistoryPasteModal } from "../ChatHistoryPasteModal";
+import { FetchWorkingStyleModal } from "../FetchWorkingStyleModal";
 import { Attribution, KiraBanner, SectionHead } from "../primitives";
 import type { EmperData } from "../data";
 
 interface SelfPageProps {
   data: EmperData;
   onTalkToKira: () => void;
+  onRefresh?: () => void;
+  refreshing?: boolean;
 }
 
-export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
+export function SelfPage({ data, onTalkToKira, onRefresh, refreshing }: SelfPageProps) {
   const [isPublic, setIsPublic] = React.useState(data.user.publicProfile);
   const [chatHistoryOpen, setChatHistoryOpen] = React.useState(false);
+  const [fetchWorkingStyleOpen, setFetchWorkingStyleOpen] = React.useState(false);
+  const [rebuilding, setRebuilding] = React.useState(false);
+  const [rebuildStatus, setRebuildStatus] = React.useState<string | null>(null);
+
+  async function triggerRebuild() {
+    setRebuilding(true);
+    setRebuildStatus("rebuilding profile…");
+    try {
+      await fetch("/api/candidate/rebuild", { method: "POST" });
+      // Poll for completion — rebuild takes ~30-60s (batch API)
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        await onRefresh?.();
+        if (attempts >= 24) { // 2 min max
+          clearInterval(poll);
+          setRebuilding(false);
+          setRebuildStatus("done · reload if profile still empty");
+        }
+      }, 5000);
+      setTimeout(() => {
+        clearInterval(poll);
+        setRebuilding(false);
+        setRebuildStatus("done · reload if profile still empty");
+      }, 120_000);
+    } catch {
+      setRebuilding(false);
+      setRebuildStatus("rebuild failed — check uvicorn is running");
+    }
+  }
 
   return (
     <div className="max-w-[760px] mx-auto px-12 py-12">
@@ -33,6 +66,13 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
+              onClick={() => setFetchWorkingStyleOpen(true)}
+              className="btn btn-accent"
+            >
+              <Icon name="spark" size={12} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">fetch working style</span>
+            </button>
+            <button
               onClick={() => setChatHistoryOpen(true)}
               className="btn"
             >
@@ -47,6 +87,33 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
               <Icon name="doc" size={12} />
               <span className="font-mono text-[11px] uppercase tracking-wider">download .md</span>
             </a>
+            <button
+              onClick={triggerRebuild}
+              disabled={rebuilding}
+              className="btn"
+              title="Rebuild profile from all documents"
+            >
+              <Icon name="refresh" size={12} className={rebuilding ? "animate-spin" : ""} />
+              <span className="font-mono text-[11px] uppercase tracking-wider">
+                {rebuilding ? "rebuilding…" : "rebuild profile"}
+              </span>
+            </button>
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={refreshing}
+                className="btn"
+                title="Refresh profile from database"
+              >
+                <Icon name="refresh" size={12} className={refreshing ? "animate-spin" : ""} />
+                <span className="font-mono text-[11px] uppercase tracking-wider">
+                  {refreshing ? "refreshing…" : "refresh"}
+                </span>
+              </button>
+            )}
+            {rebuildStatus && (
+              <span className="font-mono text-[10px] text-faint">{rebuildStatus}</span>
+            )}
             <button
               onClick={() => setIsPublic((p) => !p)}
               className="btn"
@@ -86,6 +153,21 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
             <p>{data.howIWork.body}</p>
           </div>
           <Attribution sources={data.howIWork.sources} />
+        </section>
+      ) : null}
+
+      {data.behavioralProfile ? (
+        <section className="mb-14">
+          <SectionHead label="Behavioral signals" mono="from Claude chat history" />
+          <div
+            className="prose-warm text-[15.5px] leading-relaxed font-serif-h"
+            style={{ fontWeight: 300 }}
+          >
+            {data.behavioralProfile.body.split("\n\n").map((para, i) => (
+              <p key={i} className={i > 0 ? "mt-4" : ""}>{para}</p>
+            ))}
+          </div>
+          <Attribution sources={data.behavioralProfile.sources} />
         </section>
       ) : null}
 
@@ -139,6 +221,10 @@ export function SelfPage({ data, onTalkToKira }: SelfPageProps) {
       <ChatHistoryPasteModal
         open={chatHistoryOpen}
         onClose={() => setChatHistoryOpen(false)}
+      />
+      <FetchWorkingStyleModal
+        open={fetchWorkingStyleOpen}
+        onClose={() => setFetchWorkingStyleOpen(false)}
       />
     </div>
   );
